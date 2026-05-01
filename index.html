@@ -1,0 +1,632 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <meta name="theme-color" content="#0a0e1a">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+    <meta http-equiv="X-Content-Type-Options" content="nosniff">
+    <meta name="referrer" content="strict-origin-when-cross-origin">
+    <title>EV Training · Gym Tracker</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="css/styles.css">
+    <link rel="manifest" href="manifest.webmanifest">
+</head>
+<body>
+    <!-- LOADING -->
+    <div id="boot" class="boot">
+        <div class="boot-inner">
+            <div class="boot-logo">
+                <svg viewBox="0 0 64 64" fill="none">
+                    <path d="M14 20 L14 44 M50 20 L50 44 M22 26 L22 38 M42 26 L42 38 M22 32 L42 32 M6 28 L6 36 M58 28 L58 36" stroke="url(#bootg)" stroke-width="4" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="bootg" x1="0" y1="0" x2="64" y2="64">
+                            <stop offset="0" stop-color="#00FF94"/>
+                            <stop offset="1" stop-color="#00B8FF"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <p class="boot-text">EV TRAINING</p>
+        </div>
+    </div>
+
+    <!-- LOGIN SCREEN -->
+    <section id="screen-login" class="screen">
+        <div class="login-bg">
+            <div class="orb orb-1"></div>
+            <div class="orb orb-2"></div>
+            <div class="orb orb-3"></div>
+        </div>
+        <div class="login-content">
+            <div class="login-logo">
+                <svg viewBox="0 0 64 64" fill="none">
+                    <path d="M14 20 L14 44 M50 20 L50 44 M22 26 L22 38 M42 26 L42 38 M22 32 L42 32 M6 28 L6 36 M58 28 L58 36" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
+                    <defs>
+                        <linearGradient id="lg" x1="0" y1="0" x2="64" y2="64">
+                            <stop offset="0" stop-color="#00FF94"/>
+                            <stop offset="1" stop-color="#00B8FF"/>
+                        </linearGradient>
+                    </defs>
+                </svg>
+            </div>
+            <h1 class="login-title">EV TRAINING</h1>
+            <p class="login-subtitle">Tu compañero de entrenamiento</p>
+
+            <form id="login-form" class="login-form">
+                <div class="input-group">
+                    <label>Usuario</label>
+                    <input type="text" id="login-username" autocomplete="username" required>
+                </div>
+                <div class="input-group">
+                    <label>Contraseña</label>
+                    <input type="password" id="login-password" autocomplete="current-password" required>
+                </div>
+                <p id="login-error" class="form-error"></p>
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <span>Entrar</span>
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M5 12h14M13 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </form>
+
+        </div>
+    </section>
+
+    <!-- MAIN APP -->
+    <main id="app" class="app hidden">
+        <!-- TOP BAR -->
+        <header class="topbar">
+            <button id="menu-btn" class="icon-btn" aria-label="Menú">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M4 7h16M4 12h16M4 17h10" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </button>
+            <div class="topbar-title" id="topbar-title">Inicio</div>
+            <button id="profile-btn" class="profile-btn" aria-label="Perfil">
+                <span id="profile-initial">E</span>
+            </button>
+        </header>
+
+        <!-- VIEW: HOME -->
+        <section id="view-home" class="view active">
+            <div class="hero">
+                <p class="hero-greeting">Hola, <span id="hero-name">Edison</span></p>
+                <h2 class="hero-title">¿Listo para entrenar?</h2>
+                <p class="hero-date" id="hero-date">Hoy</p>
+            </div>
+
+            <div class="stats-row">
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#00FF94,#00B8FF)">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-value" id="stat-streak">0</p>
+                        <p class="stat-label">Racha</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#7C5CFF,#5B8DEF)">
+                        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-value" id="stat-month">0</p>
+                        <p class="stat-label">Este mes</p>
+                    </div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#00D9A3,#00B8FF)">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="stat-info">
+                        <p class="stat-value" id="stat-volume">0</p>
+                        <p class="stat-label">kg totales</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section-header">
+                <h3>Selecciona tu rutina</h3>
+                <p>Toca una rutina para comenzar</p>
+            </div>
+
+            <div id="routines-list" class="routines-list"></div>
+
+            <div class="section-header">
+                <h3>Última sesión</h3>
+            </div>
+            <div id="last-session" class="last-session"></div>
+        </section>
+
+        <!-- VIEW: ROUTINE PREVIEW -->
+        <section id="view-preview" class="view">
+            <div class="preview-hero" id="preview-hero">
+                <button class="back-btn" data-back="home">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+                <div class="preview-hero-content">
+                    <p class="preview-day" id="preview-day">LUNES</p>
+                    <h2 id="preview-title">TORSO</h2>
+                    <div class="preview-stats">
+                        <span><strong id="preview-count">6</strong> ejercicios</span>
+                        <span>·</span>
+                        <span>~<strong id="preview-time">60</strong> min</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="preview-list" id="preview-list"></div>
+
+            <div class="preview-actions">
+                <button id="start-workout" class="btn btn-primary btn-xl">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M5 4l14 8-14 8V4z" fill="currentColor"/></svg>
+                    <span>Empezar entrenamiento</span>
+                </button>
+            </div>
+        </section>
+
+        <!-- VIEW: WORKOUT -->
+        <section id="view-workout" class="view">
+            <header class="workout-bar">
+                <button id="workout-exit" class="icon-btn">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                </button>
+                <div class="workout-progress">
+                    <div class="workout-progress-bar"><div id="workout-progress-fill"></div></div>
+                    <span id="workout-progress-text">1 / 6</span>
+                </div>
+                <div class="workout-clock" id="workout-clock">00:00</div>
+            </header>
+
+            <div class="workout-body">
+                <div class="exercise-card">
+                    <div class="exercise-meta">
+                        <span class="exercise-num" id="ex-num">1</span>
+                        <span class="exercise-target editable-target" id="ex-target">3 series · 8 a 10 reps</span>
+                    </div>
+                    <h2 class="exercise-name" id="ex-name">PRESS PECTORAL</h2>
+
+                    <div id="ex-last-banner" class="last-session-banner hidden">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 8v4l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/></svg>
+                        <span id="ex-last-banner-text">Tu última sesión: --</span>
+                    </div>
+
+                    <div class="exercise-illustration" id="ex-illustration">
+                        <svg viewBox="0 0 200 120" id="ex-svg"></svg>
+                        <button class="ex-image-camera" id="ex-image-upload-btn" type="button" aria-label="Subir imagen" title="Subir imagen">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M3 7h4l2-3h6l2 3h4v12H3V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>
+                        </button>
+                        <button class="ex-image-expand" id="ex-image-expand-btn" type="button" aria-label="Ampliar" title="Ampliar imagen">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                    </div>
+                    <input type="file" id="ex-image-input" accept="image/*" hidden>
+
+                    <div class="exercise-actions">
+                        <button class="action-chip" id="ex-swap-btn">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M7 16V4M7 4L3 8M7 4l4 4M17 8v12M17 20l4-4M17 20l-4-4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                            <span>Cambiar ejercicio</span>
+                        </button>
+                        <button class="action-chip" id="ex-edit-btn">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25zM20.71 7.04a1 1 0 000-1.41l-2.34-2.34a1 1 0 00-1.41 0l-1.83 1.83 3.75 3.75 1.83-1.83z" fill="currentColor"/></svg>
+                            <span>Editar</span>
+                        </button>
+                    </div>
+
+                    <div class="exercise-tips" id="ex-tips-wrapper">
+                        <div class="section-with-edit">
+                            <div class="section-with-edit-title">
+                                <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a7 7 0 00-4 12.74V17a2 2 0 002 2h4a2 2 0 002-2v-2.26A7 7 0 0012 2z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M9 22h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                                <span>Cómo ejecutarlo</span>
+                            </div>
+                            <button class="edit-pencil" id="ex-edit-tips-btn" aria-label="Editar tips">
+                                <svg viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/></svg>
+                            </button>
+                        </div>
+                        <p id="ex-tips">Mantén la postura correcta...</p>
+                    </div>
+                </div>
+
+                <div class="rest-card" id="rest-card">
+                    <div class="rest-card-icon">
+                        <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    </div>
+                    <div class="rest-card-info">
+                        <p class="rest-card-label">Descanso entre series</p>
+                        <p class="rest-card-value" id="rest-card-value">2:00 min</p>
+                    </div>
+                    <div class="rest-card-actions">
+                        <button class="rest-card-btn" id="rest-start-btn" aria-label="Iniciar cronómetro" title="Iniciar cronómetro">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M5 4l14 8-14 8V4z" fill="currentColor"/></svg>
+                        </button>
+                        <button class="rest-card-btn" id="rest-edit-btn" aria-label="Editar descanso" title="Editar tiempo">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M3 17.25V21h3.75L17.81 9.94l-3.75-3.75L3 17.25z" fill="currentColor"/></svg>
+                        </button>
+                    </div>
+                </div>
+
+                <div class="sets-section">
+                    <div class="sets-section-header">
+                        <h3>Series</h3>
+                    </div>
+                    <div id="sets-list" class="sets-list"></div>
+                </div>
+            </div>
+
+            <!-- Rest Timer Overlay -->
+            <div id="rest-overlay" class="rest-overlay hidden">
+                <div class="rest-content">
+                    <p class="rest-label">DESCANSO</p>
+                    <div class="rest-circle">
+                        <svg viewBox="0 0 200 200">
+                            <circle cx="100" cy="100" r="90" stroke="rgba(255,255,255,0.08)" stroke-width="8" fill="none"/>
+                            <circle id="rest-circle-fg" cx="100" cy="100" r="90" stroke="url(#restg)" stroke-width="8" fill="none" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="565.48" stroke-dashoffset="0"/>
+                            <defs>
+                                <linearGradient id="restg" x1="0" y1="0" x2="200" y2="200">
+                                    <stop offset="0" stop-color="#00FF94"/>
+                                    <stop offset="1" stop-color="#00B8FF"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="rest-time" id="rest-time">2:00</div>
+                    </div>
+                    <p class="rest-next" id="rest-next">Siguiente: Serie 2</p>
+                    <div class="rest-actions">
+                        <button id="rest-minus" class="btn-circle">-15s</button>
+                        <button id="rest-skip" class="btn btn-light">Saltar</button>
+                        <button id="rest-plus" class="btn-circle">+15s</button>
+                    </div>
+                </div>
+            </div>
+
+            <div class="workout-footer">
+                <button id="ex-prev" class="btn btn-ghost">
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M15 18l-6-6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    Anterior
+                </button>
+                <button id="ex-next" class="btn btn-primary">
+                    <span id="ex-next-text">Siguiente</span>
+                    <svg viewBox="0 0 24 24" fill="none"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </div>
+        </section>
+
+        <!-- VIEW: SESSION SUMMARY -->
+        <section id="view-summary" class="view">
+            <div class="summary-hero">
+                <div class="summary-emoji">🎉</div>
+                <h2>¡Sesión completada!</h2>
+                <p id="summary-routine">Torso - Lunes</p>
+            </div>
+            <div class="summary-stats">
+                <div class="summary-stat">
+                    <p class="big-num" id="summary-time">45m</p>
+                    <p>Duración</p>
+                </div>
+                <div class="summary-stat">
+                    <p class="big-num" id="summary-volume">0</p>
+                    <p>Volumen (kg)</p>
+                </div>
+                <div class="summary-stat">
+                    <p class="big-num" id="summary-reps">0</p>
+                    <p>Reps totales</p>
+                </div>
+                <div class="summary-stat">
+                    <p class="big-num" id="summary-sets">0</p>
+                    <p>Series</p>
+                </div>
+            </div>
+            <div id="summary-progress" class="summary-progress"></div>
+            <div class="summary-actions">
+                <button id="summary-save" class="btn btn-primary btn-xl">Guardar sesión</button>
+                <button id="summary-discard" class="btn btn-ghost">Descartar</button>
+            </div>
+        </section>
+
+        <!-- VIEW: DASHBOARD -->
+        <section id="view-dashboard" class="view">
+            <button class="view-back" data-back="home" aria-label="Volver">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Volver</span>
+            </button>
+            <div class="dash-header">
+                <h2>Dashboard</h2>
+                <select id="dash-period" class="select">
+                    <option value="week">Esta semana</option>
+                    <option value="month" selected>Este mes</option>
+                    <option value="3month">Últimos 3 meses</option>
+                    <option value="all">Todo</option>
+                </select>
+            </div>
+
+            <div class="dash-stats">
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Sesiones</p>
+                    <p class="dash-stat-value" id="dash-sessions">0</p>
+                    <p class="dash-stat-change" id="dash-sessions-change"></p>
+                </div>
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Volumen total</p>
+                    <p class="dash-stat-value"><span id="dash-volume">0</span><small> kg</small></p>
+                    <p class="dash-stat-change" id="dash-volume-change"></p>
+                </div>
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Reps totales</p>
+                    <p class="dash-stat-value" id="dash-reps">0</p>
+                    <p class="dash-stat-change" id="dash-reps-change"></p>
+                </div>
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Tiempo</p>
+                    <p class="dash-stat-value"><span id="dash-time">0</span><small> min</small></p>
+                    <p class="dash-stat-change" id="dash-time-change"></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Volumen por sesión</h3>
+                <div class="chart-wrap"><canvas id="chart-volume"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Frecuencia semanal</h3>
+                <div class="chart-wrap"><canvas id="chart-frequency"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Progresión por ejercicio</h3>
+                <select id="dash-exercise" class="select"></select>
+                <div class="chart-wrap"><canvas id="chart-exercise"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Récords personales</h3>
+                <div id="dash-records" class="records-list"></div>
+            </div>
+        </section>
+
+        <!-- VIEW: HISTORY -->
+        <section id="view-history" class="view">
+            <button class="view-back" data-back="home" aria-label="Volver">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Volver</span>
+            </button>
+            <h2 class="view-title">Historial</h2>
+            <div id="history-list" class="history-list"></div>
+        </section>
+
+        <!-- VIEW: USERS (admin) -->
+        <section id="view-users" class="view">
+            <button class="view-back" data-back="home" aria-label="Volver">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Volver</span>
+            </button>
+            <h2 class="view-title">Usuarios</h2>
+            <button id="add-user-btn" class="btn btn-primary">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Crear usuario
+            </button>
+            <div id="users-list" class="users-list"></div>
+        </section>
+
+        <!-- VIEW: BODY METRICS -->
+        <section id="view-body" class="view">
+            <button class="view-back" data-back="settings" aria-label="Volver">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Volver</span>
+            </button>
+            <h2 class="view-title">Peso y medidas</h2>
+            <p style="color:var(--text-2);font-size:13px;margin:-12px 0 16px">Registra periódicamente tu peso y medidas corporales para visualizar tu progreso.</p>
+
+            <button id="add-metric-btn" class="btn btn-primary btn-block">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M12 5v14M5 12h14" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                Nueva medición
+            </button>
+
+            <div class="dash-stats" style="margin-top:16px">
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Peso actual</p>
+                    <p class="dash-stat-value"><span id="body-current-weight">--</span><small> kg</small></p>
+                    <p class="dash-stat-change" id="body-weight-change"></p>
+                </div>
+                <div class="dash-stat-card">
+                    <p class="dash-stat-label">Mediciones</p>
+                    <p class="dash-stat-value" id="body-count">0</p>
+                    <p class="dash-stat-change" id="body-count-since"></p>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Evolución del peso</h3>
+                <div class="chart-wrap"><canvas id="chart-body-weight"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Medidas corporales</h3>
+                <select id="body-measure-select" class="select" style="margin-bottom:10px">
+                    <option value="chest">Pecho</option>
+                    <option value="waist">Cintura</option>
+                    <option value="biceps">Bíceps</option>
+                    <option value="quadriceps">Cuádriceps</option>
+                    <option value="calves">Gemelos</option>
+                    <option value="back">Espalda</option>
+                </select>
+                <div class="chart-wrap"><canvas id="chart-body-measure"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Historial</h3>
+                <div id="body-history-list" class="body-history-list"></div>
+            </div>
+        </section>
+
+        <!-- VIEW: SETTINGS -->
+        <section id="view-settings" class="view">
+            <button class="view-back" data-back="home" aria-label="Volver">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M19 12H5m6-6l-6 6 6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Volver</span>
+            </button>
+            <h2 class="view-title">Ajustes</h2>
+
+            <div class="card">
+                <h3>Preferencias de entrenamiento</h3>
+                <div class="setting-row-toggle">
+                    <div class="info">
+                        <p>Cronómetro automático de descanso</p>
+                        <p>Si está activo, al completar una serie se levanta el cronómetro a pantalla completa. Si está desactivado, solo verás el tiempo recomendado.</p>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="setting-auto-rest">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+                <div class="setting-row-toggle">
+                    <div class="info">
+                        <p>Sonidos al completar serie</p>
+                        <p>Beep suave cada vez que marcas una serie como completa.</p>
+                    </div>
+                    <label class="toggle">
+                        <input type="checkbox" id="setting-sounds">
+                        <span class="toggle-slider"></span>
+                    </label>
+                </div>
+            </div>
+
+            <div class="card">
+                <h3>Mi cuenta</h3>
+                <div class="settings-row">
+                    <span>Nombre</span>
+                    <span id="set-name">-</span>
+                </div>
+                <div class="settings-row">
+                    <span>Usuario</span>
+                    <span id="set-username">-</span>
+                </div>
+                <div class="settings-row">
+                    <span>Rol</span>
+                    <span id="set-role">-</span>
+                </div>
+                <button id="change-password-btn" class="btn btn-ghost">Cambiar contraseña</button>
+            </div>
+
+            <button class="card card-link" id="open-body-btn" type="button">
+                <div class="card-link-content">
+                    <div class="card-link-icon">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2a4 4 0 014 4 4 4 0 01-4 4 4 4 0 01-4-4 4 4 0 014-4zM6 22v-3a4 4 0 014-4h4a4 4 0 014 4v3" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </div>
+                    <div class="card-link-text">
+                        <h3 style="margin:0">Peso y medidas corporales</h3>
+                        <p>Registra tu progreso físico mes a mes</p>
+                    </div>
+                    <svg viewBox="0 0 24 24" fill="none" width="22" height="22" style="color:var(--text-2)"><path d="M9 6l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </div>
+            </button>
+
+            <div class="card">
+                <h3>Sincronización con Google Sheets</h3>
+                <p class="settings-help">Pega aquí la URL de tu Web App de Apps Script y el token compartido (configurado en Project Settings de Apps Script).</p>
+                <div class="input-group">
+                    <label>URL del Web App</label>
+                    <input type="url" id="sheets-url" autocomplete="off" placeholder="https://script.google.com/macros/s/.../exec">
+                </div>
+                <div class="input-group">
+                    <label>Token de seguridad (recomendado)</label>
+                    <input type="password" id="sheets-token" autocomplete="off" placeholder="Pega tu API_TOKEN del Apps Script">
+                </div>
+                <div class="settings-actions">
+                    <button id="sheets-test" class="btn btn-ghost">Probar conexión</button>
+                    <button id="sheets-sync" class="btn btn-primary">Sincronizar ahora</button>
+                </div>
+                <p id="sheets-status" class="settings-status"></p>
+            </div>
+
+            <div class="card">
+                <h3>Datos</h3>
+                <div class="settings-actions">
+                    <button id="export-json" class="btn btn-ghost">Exportar JSON</button>
+                    <button id="import-json" class="btn btn-ghost">Importar JSON</button>
+                    <button id="export-csv" class="btn btn-ghost">Exportar CSV</button>
+                </div>
+                <input type="file" id="import-file" accept="application/json" hidden>
+            </div>
+
+            <div class="card danger">
+                <h3>Zona peligrosa</h3>
+                <button id="reset-data" class="btn btn-danger">Borrar todos mis datos</button>
+            </div>
+
+            <button id="logout-btn" class="btn btn-ghost btn-block">Cerrar sesión</button>
+        </section>
+
+        <!-- BOTTOM NAV -->
+        <nav class="bottom-nav">
+            <button class="nav-item active" data-view="home">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 12l9-9 9 9v9a2 2 0 01-2 2h-4v-7H10v7H6a2 2 0 01-2-2v-9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span>Inicio</span>
+            </button>
+            <button class="nav-item" data-view="dashboard">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M3 12h4l3-9 4 18 3-9h4" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                <span>Progreso</span>
+            </button>
+            <button class="nav-item" data-view="history">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="9" stroke="currentColor" stroke-width="2"/><path d="M12 7v5l3 2" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <span>Historial</span>
+            </button>
+            <button class="nav-item" data-view="settings">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/><path d="M19.4 15a1.7 1.7 0 00.34 1.87l.06.06a2 2 0 11-2.83 2.83l-.06-.06a1.7 1.7 0 00-1.87-.34 1.7 1.7 0 00-1.04 1.56V21a2 2 0 11-4 0v-.08a1.7 1.7 0 00-1.04-1.56 1.7 1.7 0 00-1.87.34l-.06.06a2 2 0 11-2.83-2.83l.06-.06a1.7 1.7 0 00.34-1.87 1.7 1.7 0 00-1.56-1.04H3a2 2 0 110-4h.08A1.7 1.7 0 004.6 9a1.7 1.7 0 00-.34-1.87l-.06-.06a2 2 0 112.83-2.83l.06.06a1.7 1.7 0 001.87.34h0a1.7 1.7 0 001.04-1.56V3a2 2 0 114 0v.08a1.7 1.7 0 001.04 1.56 1.7 1.7 0 001.87-.34l.06-.06a2 2 0 112.83 2.83l-.06.06a1.7 1.7 0 00-.34 1.87v0a1.7 1.7 0 001.56 1.04H21a2 2 0 110 4h-.08a1.7 1.7 0 00-1.56 1.04z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/></svg>
+                <span>Ajustes</span>
+            </button>
+        </nav>
+
+        <!-- SIDE MENU -->
+        <div id="menu" class="menu hidden">
+            <div class="menu-overlay"></div>
+            <div class="menu-panel">
+                <div class="menu-header">
+                    <div class="menu-avatar" id="menu-avatar">E</div>
+                    <div>
+                        <p class="menu-name" id="menu-name">Edison</p>
+                        <p class="menu-role" id="menu-role">Admin</p>
+                    </div>
+                </div>
+                <button class="menu-item" data-view="home">Inicio</button>
+                <button class="menu-item" data-view="dashboard">Dashboard</button>
+                <button class="menu-item" data-view="history">Historial</button>
+                <button class="menu-item" data-view="body">Peso y medidas</button>
+                <button class="menu-item admin-only" data-view="users">Gestionar usuarios</button>
+                <button class="menu-item" data-view="settings">Ajustes</button>
+                <div class="menu-spacer"></div>
+                <button class="menu-item menu-logout" id="menu-logout">Cerrar sesión</button>
+            </div>
+        </div>
+
+        <!-- MODAL container -->
+        <div id="modal" class="modal hidden">
+            <div class="modal-overlay"></div>
+            <div class="modal-content" id="modal-content"></div>
+        </div>
+
+        <!-- IMAGE VIEWER (lightbox) -->
+        <div id="image-viewer" class="image-viewer hidden">
+            <button class="image-viewer-close" id="image-viewer-close" aria-label="Cerrar">
+                <svg viewBox="0 0 24 24" fill="none"><path d="M6 6l12 12M18 6L6 18" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            </button>
+            <img id="image-viewer-img" alt="">
+            <div class="image-viewer-caption" id="image-viewer-caption"></div>
+        </div>
+
+        <!-- TOAST -->
+        <div id="toast" class="toast"></div>
+    </main>
+
+    <script src="js/data.js"></script>
+    <script src="js/storage.js"></script>
+    <script src="js/auth.js"></script>
+    <script src="js/illustrations.js"></script>
+    <script src="js/workout.js"></script>
+    <script src="js/dashboard.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+    <script src="js/app.js"></script>
+</body>
+</html>

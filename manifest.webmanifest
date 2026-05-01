@@ -1,0 +1,26 @@
+{
+  "name": "EV Training",
+  "short_name": "EV Training",
+  "description": "App de seguimiento de entrenamiento de gimnasio",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#06080F",
+  "theme_color": "#0a0e1a",
+  "lang": "es",
+  "icons": [
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0' y1='0' x2='192' y2='192'><stop offset='0' stop-color='%23FF3D71'/><stop offset='1' stop-color='%237C5CFF'/></linearGradient></defs><rect width='192' height='192' rx='40' fill='%230A0E1A'/><path d='M42 60 L42 132 M150 60 L150 132 M66 78 L66 114 M126 78 L126 114 M66 96 L126 96 M18 84 L18 108 M174 84 L174 108' stroke='url(%23g)' stroke-width='12' stroke-linecap='round' fill='none'/></svg>",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0' y1='0' x2='512' y2='512'><stop offset='0' stop-color='%23FF3D71'/><stop offset='1' stop-color='%237C5CFF'/></linearGradient></defs><rect width='512' height='512' rx='100' fill='%230A0E1A'/><path d='M112 160 L112 352 M400 160 L400 352 M176 208 L176 304 M336 208 L336 304 M176 256 L336 256 M48 224 L48 288 M464 224 L464 288' stroke='url(%23g)' stroke-width='32' stroke-linecap='round' fill='none'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}

@@ -1,0 +1,17 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__6c4a7a24-45cc-4ae8-8e07-8807d113a8c5__search_files",
+      "mcp__6c4a7a24-45cc-4ae8-8e07-8807d113a8c5__read_file_content",
+      "mcp__6c4a7a24-45cc-4ae8-8e07-8807d113a8c5__create_file",
+      "Bash(node -c js/storage.js)",
+      "Bash(node -c js/auth.js)",
+      "Bash(node -c js/workout.js)",
+      "Bash(node -c js/dashboard.js)",
+      "Bash(node -c js/app.js)",
+      "Bash(node -c js/data.js)",
+      "Bash(node -c js/illustrations.js)",
+      "Bash(grep -v \"= \\\\`\")"
+    ]
+  }
+}
