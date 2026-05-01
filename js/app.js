@@ -10,6 +10,35 @@ const App = (() => {
     const $ = sel => document.querySelector(sel);
     const $$ = sel => document.querySelectorAll(sel);
 
+    /**
+     * Find a routine by id, looking first at the current user's custom routines
+     * (stored on the user record) and then at the built-in ROUTINES array.
+     */
+    function findRoutine(routineId) {
+        const user = Storage.getCurrentUser();
+        if (user && Array.isArray(user.customRoutines)) {
+            const found = user.customRoutines.find(r => r && r.id === routineId);
+            if (found) return found;
+        }
+        return ROUTINES.find(r => r.id === routineId) || null;
+    }
+
+    /**
+     * Returns the list of routines the current user is allowed to see/run.
+     * Includes the user's custom routines plus the built-in routines whose ids
+     * appear in user.routines (defaults to all built-ins for legacy users).
+     */
+    function getRoutinesForUser(user) {
+        if (!user) return ROUTINES.slice();
+        const customs = Array.isArray(user.customRoutines) ? user.customRoutines : [];
+        const allowedIds = Array.isArray(user.routines) && user.routines.length > 0
+            ? user.routines
+            : ROUTINES.map(r => r.id);
+        const customIds = new Set(customs.map(r => r.id));
+        const builtins = ROUTINES.filter(r => allowedIds.includes(r.id));
+        return [...builtins, ...customs.filter(r => allowedIds.includes(r.id) || !customIds.has(r.id))];
+    }
+
     function fmtSec(sec) {
         const m = Math.floor(sec / 60);
         const s = sec % 60;
@@ -333,14 +362,17 @@ const App = (() => {
         $('#stat-month').textContent = Dashboard.calcMonthSessions(user.id);
         $('#stat-volume').textContent = Math.round(Dashboard.calcMonthVolume(user.id)).toLocaleString('es-ES');
 
-        // Routines
+        // Routines (built-in + user's custom routines from imported Excel)
         const list = $('#routines-list');
         list.innerHTML = '';
-        const allowed = user.routines || ROUTINES.map(r => r.id);
         const today = new Date().getDay();
+        const visibleRoutines = getRoutinesForUser(user);
 
-        for (const r of ROUTINES) {
-            if (!allowed.includes(r.id)) continue;
+        if (visibleRoutines.length === 0) {
+            list.innerHTML = '<p style="text-align:center;color:var(--text-2);padding:24px 12px;font-size:13px;background:var(--surface);border:1px solid var(--border);border-radius:14px">Aún no hay rutinas asignadas. Pídele al admin que te asigne alguna.</p>';
+        }
+
+        for (const r of visibleRoutines) {
             const isToday = r.dayNum === today;
             const card = document.createElement('div');
             card.className = 'routine-card';
@@ -886,12 +918,13 @@ const App = (() => {
     }
 
     function showAddUser() {
-        const opts = ROUTINES.map(r => `
-            <label style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px;cursor:pointer">
-                <input type="checkbox" name="routine" value="${r.id}" checked>
-                <span>${r.name} · ${r.day}</span>
+        const checkboxes = ROUTINES.map(r => `
+            <label class="check-row">
+                <input type="checkbox" name="routine" value="${escapeHtml(r.id)}" checked>
+                <span>${escapeHtml(r.name)} · ${escapeHtml(r.day)}</span>
             </label>
         `).join('');
+
         showModal(`
             <h3>Nuevo usuario</h3>
             <form id="add-user-form" style="display:flex;flex-direction:column;gap:14px">
@@ -900,46 +933,147 @@ const App = (() => {
                 <div class="input-group"><label>Contraseña</label><input type="password" id="nu-password" minlength="4" maxlength="80" required></div>
                 <div class="input-group">
                     <label>Rol</label>
-                    <select id="nu-role">
-                        <option value="user">Usuario</option>
-                        <option value="admin">Admin</option>
-                    </select>
+                    <div id="nu-role-mount"></div>
                 </div>
-                <div>
-                    <label style="font-size:12px;font-weight:500;color:var(--text-2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Rutinas asignadas</label>
-                    <div style="display:flex;flex-direction:column;gap:6px">${opts}</div>
+
+                <div class="seg-tabs">
+                    <button type="button" class="seg-tab active" data-mode="default">Usar rutinas predefinidas</button>
+                    <button type="button" class="seg-tab" data-mode="excel">Subir Excel propio</button>
                 </div>
+
+                <div id="nu-mode-default" class="nu-pane">
+                    <label class="field-label">Rutinas asignadas</label>
+                    <div class="check-list">${checkboxes}</div>
+                </div>
+
+                <div id="nu-mode-excel" class="nu-pane hidden">
+                    <p class="settings-help">Sube un Excel con la rutina del usuario. Cada fila es un ejercicio. Descarga la plantilla para ver el formato esperado.</p>
+                    <div class="settings-actions">
+                        <button type="button" class="btn btn-ghost" id="dl-template">Descargar plantilla</button>
+                        <button type="button" class="btn btn-primary" id="upload-routine">Cargar Excel</button>
+                    </div>
+                    <input type="file" id="routine-file" accept=".xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+                    <p id="routine-status" class="settings-status"></p>
+                    <div id="routine-preview" class="routine-preview"></div>
+                </div>
+
                 <div style="display:flex;gap:10px;margin-top:6px">
                     <button type="button" class="btn btn-ghost" style="flex:1" data-action="close-modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="flex:1">Crear</button>
                 </div>
             </form>
         `);
+
+        // Mount custom Select for role
+        const roleSel = Select.create({
+            id: 'nu-role',
+            options: [
+                { value: 'user', label: 'Usuario', hint: 'Puede entrenar' },
+                { value: 'admin', label: 'Administrador', hint: 'Gestiona usuarios' }
+            ],
+            value: 'user'
+        });
+        $('#nu-role-mount').appendChild(roleSel);
+
+        // Tab switcher
+        let parsedRoutines = [];
+        let mode = 'default';
+        document.querySelectorAll('.seg-tab').forEach(t => {
+            t.onclick = () => {
+                mode = t.dataset.mode;
+                document.querySelectorAll('.seg-tab').forEach(b => b.classList.toggle('active', b === t));
+                $('#nu-mode-default').classList.toggle('hidden', mode !== 'default');
+                $('#nu-mode-excel').classList.toggle('hidden', mode !== 'excel');
+            };
+        });
+
+        // Excel template download
+        $('#dl-template').onclick = downloadRoutineTemplate;
+
+        // Excel upload
+        $('#upload-routine').onclick = () => $('#routine-file').click();
+        $('#routine-file').onchange = async e => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            const status = $('#routine-status');
+            status.className = 'settings-status';
+            status.textContent = 'Leyendo archivo...';
+            try {
+                parsedRoutines = await parseRoutineExcel(file);
+                if (parsedRoutines.length === 0) throw new Error('No se encontraron ejercicios válidos');
+                status.className = 'settings-status ok';
+                status.textContent = `✓ ${parsedRoutines.length} rutina(s) detectada(s)`;
+                renderRoutinePreview(parsedRoutines);
+            } catch (err) {
+                status.className = 'settings-status err';
+                status.textContent = 'Error: ' + err.message;
+                parsedRoutines = [];
+                $('#routine-preview').innerHTML = '';
+            }
+            e.target.value = '';
+        };
+
         $('#add-user-form').onsubmit = e => {
             e.preventDefault();
-            const routines = [...document.querySelectorAll('input[name="routine"]:checked')].map(c => c.value);
+            const routines = mode === 'default'
+                ? [...document.querySelectorAll('input[name="routine"]:checked')].map(c => c.value)
+                : [];
+
+            if (mode === 'excel' && parsedRoutines.length === 0) {
+                toast('Sube un Excel válido o cambia a "Rutinas predefinidas"', 'error');
+                return;
+            }
+
             const result = Auth.createUser({
                 name: $('#nu-name').value.trim(),
                 username: $('#nu-username').value.trim(),
                 password: $('#nu-password').value,
-                role: $('#nu-role').value,
+                role: Select.value(roleSel),
                 routines
             });
             if (!result.ok) { toast(result.error, 'error'); return; }
+
+            // Attach custom routines if any
+            if (mode === 'excel' && parsedRoutines.length > 0) {
+                const user = result.user;
+                user.customRoutines = parsedRoutines;
+                user.routines = parsedRoutines.map(r => r.id);
+                Storage.upsertUser(user);
+            }
+
             closeModal();
             renderUsers();
             toast('Usuario creado ✓', 'success');
-            // Storage.upsertUser already pushes to Firebase asynchronously.
         };
+    }
+
+    function renderRoutinePreview(routines) {
+        const container = $('#routine-preview');
+        if (!container) return;
+        container.innerHTML = routines.map(r => `
+            <div class="routine-preview-card">
+                <div class="routine-preview-head">
+                    <strong>${escapeHtml(r.name)}</strong>
+                    <span>${escapeHtml(r.day || '')} · ${r.exercises.length} ejercicios</span>
+                </div>
+                <ul class="routine-preview-list">
+                    ${r.exercises.slice(0, 8).map(ex => `
+                        <li>${escapeHtml(ex.name)} <span>${ex.target.sets}×${ex.target.repMin}-${ex.target.repMax}${ex.lastSession?.[0]?.weight ? ' · ' + ex.lastSession[0].weight + 'kg' : ''}</span></li>
+                    `).join('')}
+                    ${r.exercises.length > 8 ? `<li class="more">+${r.exercises.length - 8} más...</li>` : ''}
+                </ul>
+            </div>
+        `).join('');
     }
 
     function showEditUser(userId) {
         const u = Storage.getUser(userId);
         if (!u) return;
-        const opts = ROUTINES.map(r => `
-            <label style="display:flex;align-items:center;gap:8px;padding:8px;background:rgba(255,255,255,0.04);border-radius:8px;cursor:pointer">
-                <input type="checkbox" name="routine" value="${r.id}" ${u.routines.includes(r.id) ? 'checked' : ''}>
-                <span>${r.name} · ${r.day}</span>
+        const allRoutines = [...ROUTINES, ...(u.customRoutines || [])];
+        const opts = allRoutines.map(r => `
+            <label class="check-row">
+                <input type="checkbox" name="routine" value="${escapeHtml(r.id)}" ${(u.routines || []).includes(r.id) ? 'checked' : ''}>
+                <span>${escapeHtml(r.name)} · ${escapeHtml(r.day || '')}${r.isCustom ? ' · <em style="color:var(--primary);font-style:normal;font-size:11px">(personalizada)</em>' : ''}</span>
             </label>
         `).join('');
         showModal(`
@@ -950,14 +1084,11 @@ const App = (() => {
                 <div class="input-group"><label>Nueva contraseña (opcional)</label><input type="password" id="eu-password" placeholder="Dejar vacío para no cambiar" minlength="4" maxlength="80"></div>
                 <div class="input-group">
                     <label>Rol</label>
-                    <select id="eu-role">
-                        <option value="user" ${u.role === 'user' ? 'selected' : ''}>Usuario</option>
-                        <option value="admin" ${u.role === 'admin' ? 'selected' : ''}>Admin</option>
-                    </select>
+                    <div id="eu-role-mount"></div>
                 </div>
                 <div>
-                    <label style="font-size:12px;font-weight:500;color:var(--text-2);text-transform:uppercase;letter-spacing:0.3px;margin-bottom:8px;display:block">Rutinas asignadas</label>
-                    <div style="display:flex;flex-direction:column;gap:6px">${opts}</div>
+                    <label class="field-label">Rutinas asignadas</label>
+                    <div class="check-list">${opts}</div>
                 </div>
                 <div style="display:flex;gap:10px">
                     <button type="button" class="btn btn-ghost" style="flex:1" data-action="close-modal">Cancelar</button>
@@ -965,12 +1096,23 @@ const App = (() => {
                 </div>
             </form>
         `);
+
+        const roleSel = Select.create({
+            id: 'eu-role',
+            options: [
+                { value: 'user', label: 'Usuario', hint: 'Puede entrenar' },
+                { value: 'admin', label: 'Administrador', hint: 'Gestiona usuarios' }
+            ],
+            value: u.role
+        });
+        $('#eu-role-mount').appendChild(roleSel);
+
         $('#edit-user-form').onsubmit = e => {
             e.preventDefault();
             const updates = {
                 name: $('#eu-name').value.trim(),
                 username: $('#eu-username').value.trim(),
-                role: $('#eu-role').value,
+                role: Select.value(roleSel),
                 routines: [...document.querySelectorAll('input[name="routine"]:checked')].map(c => c.value)
             };
             const newPwd = $('#eu-password').value;
@@ -1150,7 +1292,7 @@ const App = (() => {
             delete ov.tips;
             Storage.setOverride(user.id, ex.id, { tips: undefined });
             // Reload from base
-            const routine = ROUTINES.find(r => r.id === Workout.getState().routineId);
+            const routine = findRoutine(Workout.getState().routineId);
             const base = routine?.exercises.find(e => e.id === ex.id);
             const idx = Workout.getState().currentExerciseIdx;
             Workout.updateExerciseRuntime(idx, { tips: base?.tips || '' });
@@ -1306,8 +1448,9 @@ const App = (() => {
             if (!confirm('¿Restaurar los valores originales de este ejercicio?')) return;
             Storage.clearOverride(user.id, ex.id);
             // Rebuild current exercise from base
-            const routine = ROUTINES.find(r => r.id === Workout.getState().routineId);
-            const base = routine.exercises.find(e => e.id === ex.id);
+            const routine = findRoutine(Workout.getState().routineId);
+            const base = routine?.exercises.find(e => e.id === ex.id);
+            if (!base) { closeModal(); return; }
             const idx = Workout.getState().currentExerciseIdx;
             Workout.updateExerciseRuntime(idx, {
                 name: base.name,
@@ -1327,7 +1470,7 @@ const App = (() => {
         if (!ex) return;
         const state = Workout.getState();
         // Only suggest exercises from the SAME routine (same training day)
-        const routine = ROUTINES.find(r => r.id === state.routineId);
+        const routine = findRoutine(state.routineId);
         if (!routine) return;
         const candidates = routine.exercises.filter(e => e.id !== ex.id);
 
@@ -1655,6 +1798,180 @@ const App = (() => {
         if (days < 30) return `hace ${Math.round(days / 7)} sem`;
         if (days < 365) return `hace ${Math.round(days / 30)} mes(es)`;
         return `hace ${Math.round(days / 365)} año(s)`;
+    }
+
+    // ===== EXCEL ROUTINE IMPORT/EXPORT =====
+
+    const DAY_NUM_MAP = {
+        'lunes': 1, 'lun': 1, 'mon': 1, 'monday': 1,
+        'martes': 2, 'mar': 2, 'tue': 2, 'tuesday': 2,
+        'miercoles': 3, 'miércoles': 3, 'mie': 3, 'mié': 3, 'wed': 3, 'wednesday': 3,
+        'jueves': 4, 'jue': 4, 'thu': 4, 'thursday': 4,
+        'viernes': 5, 'vie': 5, 'fri': 5, 'friday': 5,
+        'sabado': 6, 'sábado': 6, 'sab': 6, 'sáb': 6, 'sat': 6, 'saturday': 6,
+        'domingo': 0, 'dom': 0, 'sun': 0, 'sunday': 0
+    };
+
+    const ROUTINE_GRADIENTS = [
+        'linear-gradient(135deg, #00FF94 0%, #00B8FF 100%)',
+        'linear-gradient(135deg, #00D9A3 0%, #5B8DEF 100%)',
+        'linear-gradient(135deg, #FFB454 0%, #00FF94 100%)',
+        'linear-gradient(135deg, #5B8DEF 0%, #7C5CFF 100%)'
+    ];
+
+    /**
+     * Lookup a value across possible column names in a row, case-insensitive.
+     */
+    function pickField(row, candidates) {
+        const keys = Object.keys(row);
+        for (const cand of candidates) {
+            for (const k of keys) {
+                if (k.toLowerCase().replace(/[\s_]/g, '') === cand.toLowerCase().replace(/[\s_]/g, '')) {
+                    return row[k];
+                }
+            }
+        }
+        return undefined;
+    }
+
+    function parseInteger(v, fallback) {
+        if (v === '' || v == null) return fallback;
+        const n = parseInt(v, 10);
+        return isNaN(n) ? fallback : n;
+    }
+    function parseFloatSafe(v, fallback) {
+        if (v === '' || v == null) return fallback;
+        const n = parseFloat(String(v).replace(',', '.'));
+        return isNaN(n) ? fallback : n;
+    }
+
+    /**
+     * Parse a routine Excel file using SheetJS.
+     * Expected format (single sheet, header row + data rows):
+     *   Día | Ejercicio | Series | Rep_min | Rep_max | Descanso_seg | Peso_kg | Notas
+     * Each row = one exercise. Rows with same "Día" are grouped into the same routine.
+     */
+    async function parseRoutineExcel(file) {
+        if (typeof XLSX === 'undefined') {
+            throw new Error('Librería de Excel no disponible');
+        }
+        if (file.size > 5 * 1024 * 1024) {
+            throw new Error('Archivo muy pesado (máx 5 MB)');
+        }
+        const buf = await file.arrayBuffer();
+        let wb;
+        try { wb = XLSX.read(buf, { type: 'array' }); }
+        catch (e) { throw new Error('No se pudo leer el archivo'); }
+
+        // Use first sheet by default; could iterate all if needed
+        const sheetName = wb.SheetNames[0];
+        if (!sheetName) throw new Error('El archivo no tiene hojas');
+        const sheet = wb.Sheets[sheetName];
+        const rows = XLSX.utils.sheet_to_json(sheet, { defval: '' });
+        if (rows.length === 0) throw new Error('La hoja está vacía');
+
+        // Group rows by Día
+        const groups = new Map();
+        for (const row of rows) {
+            const day = String(pickField(row, ['Día', 'Dia', 'Day']) || '').trim();
+            const name = String(pickField(row, ['Ejercicio', 'Exercise']) || '').trim();
+            if (!day || !name) continue;
+            // Sanitize lengths
+            if (name.length > 120) continue;
+            if (!groups.has(day)) groups.set(day, []);
+            groups.get(day).push({
+                name,
+                muscle: String(pickField(row, ['Músculo', 'Musculo', 'Muscle']) || '').slice(0, 60),
+                sets: parseInteger(pickField(row, ['Series', 'Sets']), 3),
+                repMin: parseInteger(pickField(row, ['Rep_min', 'RepMin', 'RepsMin', 'Repeticiones min', 'Min']), 8),
+                repMax: parseInteger(pickField(row, ['Rep_max', 'RepMax', 'RepsMax', 'Repeticiones max', 'Max']), 10),
+                rest: parseInteger(pickField(row, ['Descanso_seg', 'Descanso', 'Rest', 'Descansos']), 90),
+                weight: parseFloatSafe(pickField(row, ['Peso_kg', 'Peso', 'Weight', 'Kg']), 0),
+                notes: String(pickField(row, ['Notas', 'Notes', 'Tips']) || '').slice(0, 500)
+            });
+        }
+
+        if (groups.size === 0) {
+            throw new Error('No se encontraron filas con Día y Ejercicio');
+        }
+
+        // Build routine objects
+        const routines = [];
+        let i = 0;
+        for (const [dayLabel, exercises] of groups) {
+            const dayKey = dayLabel.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '');
+            const dayNum = DAY_NUM_MAP[dayKey] != null ? DAY_NUM_MAP[dayKey] : 0;
+            const idSuffix = Math.random().toString(36).slice(2, 8);
+            const routineId = 'cust-' + (dayKey || ('day' + i)) + '-' + idSuffix;
+            const sanitizedReps = (min, max) => {
+                const a = Math.max(1, Math.min(100, min || 1));
+                const b = Math.max(a, Math.min(100, max || a));
+                return [a, b];
+            };
+            routines.push({
+                id: routineId,
+                name: 'Rutina ' + (dayLabel.charAt(0).toUpperCase() + dayLabel.slice(1)),
+                day: dayLabel,
+                dayNum,
+                category: 'custom',
+                gradient: ROUTINE_GRADIENTS[i % ROUTINE_GRADIENTS.length],
+                icon: 'chest',
+                description: 'Rutina personalizada',
+                isCustom: true,
+                exercises: exercises.map((ex, j) => {
+                    const [rmin, rmax] = sanitizedReps(ex.repMin, ex.repMax);
+                    const sets = Math.max(1, Math.min(20, ex.sets || 3));
+                    const rest = Math.max(10, Math.min(1800, ex.rest || 90));
+                    return {
+                        id: routineId + '-ex' + (j + 1),
+                        order: j + 1,
+                        name: ex.name,
+                        muscle: ex.muscle || '',
+                        target: { sets, repMin: rmin, repMax: rmax },
+                        rest,
+                        tips: ex.notes,
+                        lastSession: ex.weight > 0
+                            ? Array(sets).fill({ weight: ex.weight, reps: rmax })
+                            : [],
+                        illustration: 'default'
+                    };
+                })
+            });
+            i++;
+        }
+
+        // Sort by day number for consistent ordering
+        routines.sort((a, b) => (a.dayNum || 99) - (b.dayNum || 99));
+        return routines;
+    }
+
+    function downloadRoutineTemplate() {
+        if (typeof XLSX === 'undefined') {
+            toast('Librería de Excel no disponible', 'error');
+            return;
+        }
+        const data = [
+            ['Día', 'Ejercicio', 'Músculo', 'Series', 'Rep_min', 'Rep_max', 'Descanso_seg', 'Peso_kg', 'Notas'],
+            ['Lunes', 'Press Pectoral en Máquina', 'Pecho', 3, 8, 10, 120, 60, 'Asiento altura 4'],
+            ['Lunes', 'Remo Sentado Máquina', 'Espalda', 3, 8, 10, 120, 50, 'Lleva los codos hacia atrás'],
+            ['Lunes', 'Curl Bíceps con Mancuerna', 'Bíceps', 3, 10, 12, 90, 12, ''],
+            ['Martes', 'Sentadilla Smith', 'Cuádriceps', 4, 6, 8, 150, 80, 'Pies adelantados'],
+            ['Martes', 'Prensa Inclinada', 'Glúteos', 3, 10, 12, 120, 100, ''],
+            ['Martes', 'Gemelos de Pie', 'Gemelos', 3, 12, 15, 60, 80, ''],
+            ['Jueves', 'Press Hombro Máquina', 'Hombros', 3, 6, 8, 120, 35, ''],
+            ['Jueves', 'Jalón al Pecho Amplio', 'Espalda', 3, 8, 10, 120, 55, ''],
+            ['Viernes', 'Hip Thrust', 'Glúteos', 3, 8, 10, 120, 60, ''],
+            ['Viernes', 'Sentadilla Búlgara', 'Cuádriceps', 3, 8, 10, 120, 30, '']
+        ];
+        const ws = XLSX.utils.aoa_to_sheet(data);
+        // Column widths
+        ws['!cols'] = [
+            { wch: 10 }, { wch: 32 }, { wch: 14 }, { wch: 8 }, { wch: 9 }, { wch: 9 }, { wch: 14 }, { wch: 10 }, { wch: 30 }
+        ];
+        const wb = XLSX.utils.book_new();
+        XLSX.utils.book_append_sheet(wb, ws, 'Rutina');
+        XLSX.writeFile(wb, 'plantilla_rutina_ev_training.xlsx');
+        toast('Plantilla descargada ✓', 'success');
     }
 
     function escapeHtml(str) {

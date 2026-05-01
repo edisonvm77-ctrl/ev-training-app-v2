@@ -1623,11 +1623,313 @@ input, select, textarea {
     cursor: pointer;
     outline: none;
     appearance: none;
+    color-scheme: dark;
     background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath fill='none' stroke='%239CA3B8' stroke-width='1.5' d='M1 1l4 4 4-4'/%3E%3C/svg%3E");
     background-repeat: no-repeat;
     background-position: right 12px center;
     padding-right: 32px;
 }
+.select option {
+    background: #11162A;
+    color: #E5E9F2;
+}
+
+/* ========================================
+   CUSTOM SELECT (Select.create)
+   ======================================== */
+.cs {
+    position: relative;
+    display: block;
+    width: 100%;
+}
+
+.cs-trigger {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text-0);
+    padding: 12px 14px;
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .15s ease;
+    text-align: left;
+    font-family: inherit;
+}
+.cs-trigger:hover { border-color: var(--border-strong); background: rgba(255, 255, 255, 0.06); }
+.cs-trigger:focus {
+    outline: none;
+    border-color: var(--primary);
+    box-shadow: 0 0 0 4px rgba(0, 255, 148, 0.15);
+}
+.cs-label {
+    flex: 1;
+    min-width: 0;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+}
+.cs-chev {
+    color: var(--text-2);
+    transition: transform .25s ease;
+    flex-shrink: 0;
+}
+.cs.cs-open .cs-chev {
+    transform: rotate(180deg);
+    color: var(--primary);
+}
+.cs.cs-open .cs-trigger {
+    border-color: var(--primary);
+    background: rgba(0, 255, 148, 0.05);
+}
+
+/* Dropdown menu */
+.cs-menu {
+    position: absolute;
+    top: calc(100% + 6px);
+    left: 0;
+    right: 0;
+    background: linear-gradient(180deg, #1A2138 0%, #11162A 100%);
+    border: 1px solid var(--border-strong);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: 0 18px 48px rgba(0, 0, 0, 0.5), 0 0 0 1px rgba(0, 255, 148, 0.05);
+    z-index: 250;
+    display: none;
+    max-height: 300px;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    padding: 4px;
+}
+.cs-menu.open {
+    display: block;
+    animation: csDropIn .18s ease-out;
+}
+@keyframes csDropIn {
+    from { opacity: 0; transform: translateY(-6px) scale(0.98); }
+    to { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Custom scrollbar inside menu */
+.cs-menu::-webkit-scrollbar { width: 8px; }
+.cs-menu::-webkit-scrollbar-track { background: transparent; }
+.cs-menu::-webkit-scrollbar-thumb {
+    background: rgba(255, 255, 255, 0.08);
+    border-radius: 4px;
+}
+.cs-menu::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.16); }
+
+.cs-option {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    text-align: left;
+    padding: 11px 12px;
+    color: var(--text-1);
+    font-size: 14px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all .12s ease;
+    border: none;
+    background: transparent;
+    border-radius: 8px;
+    font-family: inherit;
+}
+.cs-option:hover,
+.cs-option:focus {
+    background: rgba(0, 255, 148, 0.08);
+    color: var(--primary);
+    outline: none;
+}
+.cs-option.selected {
+    background: rgba(0, 255, 148, 0.12);
+    color: var(--primary);
+    font-weight: 600;
+}
+.cs-option.selected::before {
+    content: '';
+    width: 4px;
+    height: 16px;
+    background: var(--primary);
+    border-radius: 2px;
+    margin-right: 8px;
+    margin-left: -4px;
+    box-shadow: 0 0 8px rgba(0, 255, 148, 0.5);
+}
+.cs-option-label { flex: 1; min-width: 0; }
+.cs-option-hint {
+    font-size: 12px;
+    color: var(--text-3);
+    font-weight: 500;
+}
+
+.modal-content .cs-menu { max-height: 220px; }
+
+/* Field label utility (used in modals) */
+.field-label {
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--text-2);
+    letter-spacing: 0.4px;
+    text-transform: uppercase;
+    margin: 0 0 8px;
+    display: block;
+}
+
+/* Check list (routines checkboxes) */
+.check-list {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    max-height: 220px;
+    overflow-y: auto;
+    padding: 2px;
+}
+.check-list::-webkit-scrollbar { width: 6px; }
+.check-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 3px; }
+
+.check-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 12px;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all .15s ease;
+    font-size: 13px;
+}
+.check-row:hover {
+    background: rgba(0, 255, 148, 0.05);
+    border-color: rgba(0, 255, 148, 0.3);
+}
+.check-row input[type="checkbox"] {
+    appearance: none;
+    width: 20px;
+    height: 20px;
+    border: 2px solid var(--border-strong);
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all .15s ease;
+    flex-shrink: 0;
+    position: relative;
+    background: transparent;
+}
+.check-row input[type="checkbox"]:checked {
+    background: var(--primary);
+    border-color: var(--primary);
+}
+.check-row input[type="checkbox"]:checked::after {
+    content: '';
+    position: absolute;
+    top: 2px;
+    left: 6px;
+    width: 4px;
+    height: 9px;
+    border: solid #06080F;
+    border-width: 0 2px 2px 0;
+    transform: rotate(45deg);
+}
+.check-row input[type="checkbox"]:focus {
+    outline: none;
+    box-shadow: 0 0 0 4px rgba(0, 255, 148, 0.15);
+}
+.check-row span { flex: 1; min-width: 0; }
+.check-row:has(input:checked) {
+    background: rgba(0, 255, 148, 0.06);
+    border-color: rgba(0, 255, 148, 0.3);
+}
+
+/* Segmented tabs (default vs Excel) */
+.seg-tabs {
+    display: flex;
+    background: rgba(255, 255, 255, 0.04);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 3px;
+    gap: 3px;
+}
+.seg-tab {
+    flex: 1;
+    padding: 9px 8px;
+    border-radius: 7px;
+    color: var(--text-2);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: all .15s ease;
+    background: transparent;
+    border: none;
+}
+.seg-tab:hover { color: var(--text-1); }
+.seg-tab.active {
+    background: var(--gradient-primary);
+    color: #06080F;
+    box-shadow: 0 2px 8px rgba(0, 255, 148, 0.25);
+}
+
+.nu-pane.hidden { display: none !important; }
+
+/* Excel routine preview */
+.routine-preview {
+    margin-top: 14px;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+}
+.routine-preview-card {
+    padding: 12px 14px;
+    background: rgba(0, 255, 148, 0.04);
+    border: 1px solid rgba(0, 255, 148, 0.2);
+    border-radius: 10px;
+}
+.routine-preview-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+.routine-preview-head strong {
+    font-family: 'Space Grotesk', sans-serif;
+    font-weight: 700;
+    color: var(--primary);
+    font-size: 14px;
+}
+.routine-preview-head span {
+    color: var(--text-2);
+    font-size: 11px;
+    font-weight: 500;
+}
+.routine-preview-list {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 4px;
+}
+.routine-preview-list li {
+    font-size: 12px;
+    color: var(--text-1);
+    display: flex;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 4px 0;
+    border-bottom: 1px dashed rgba(255, 255, 255, 0.05);
+}
+.routine-preview-list li:last-child { border-bottom: none; }
+.routine-preview-list li span { color: var(--text-3); font-size: 11px; }
+.routine-preview-list li.more { color: var(--text-3); font-style: italic; justify-content: center; }
 
 .dash-stats {
     display: grid;

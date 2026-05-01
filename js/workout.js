@@ -35,9 +35,15 @@ const Workout = (() => {
         const eff = (typeof Storage !== 'undefined' && Storage.getEffectiveExercise)
             ? Storage.getEffectiveExercise(routineId, exerciseId, userId)
             : null;
-        // Fallback: pull from ROUTINES directly
+        // Fallback: pull from ROUTINES or from current user's customRoutines
         const base = eff || (() => {
-            const r = ROUTINES.find(r => r.id === routineId);
+            let r = ROUTINES.find(r => r.id === routineId);
+            if (!r && typeof Storage !== 'undefined' && Storage.getUser) {
+                const u = Storage.getUser(userId);
+                if (u && Array.isArray(u.customRoutines)) {
+                    r = u.customRoutines.find(r => r && r.id === routineId);
+                }
+            }
             return r ? r.exercises.find(e => e.id === exerciseId) : null;
         })();
         if (!base) return null;

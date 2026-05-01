@@ -269,9 +269,16 @@ const Storage = (() => {
      * Returns the exercise data combined with:
      *  1) user overrides (custom tips, target, rest, image)
      *  2) the user's most recent session for this exercise (used as suggested values)
+     * Looks in both built-in ROUTINES and the user's customRoutines.
      */
     function getEffectiveExercise(routineId, exerciseId, userId) {
-        const routine = ROUTINES.find(r => r.id === routineId);
+        let routine = ROUTINES.find(r => r.id === routineId);
+        if (!routine) {
+            const user = getUser(userId);
+            if (user && Array.isArray(user.customRoutines)) {
+                routine = user.customRoutines.find(r => r && r.id === routineId);
+            }
+        }
         if (!routine) return null;
         const base = routine.exercises.find(e => e.id === exerciseId);
         if (!base) return null;
