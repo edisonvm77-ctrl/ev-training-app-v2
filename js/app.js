@@ -257,12 +257,6 @@ const App = (() => {
 
         // Settings
         $('#change-password-btn').onclick = showChangePassword;
-        $('#sheets-test').onclick = handleSheetsTest;
-        $('#sheets-sync').onclick = handleSheetsSync;
-        $('#sheets-url').value = Storage.getSheetsUrl();
-        $('#sheets-url').onchange = e => Storage.setSheetsUrl(e.target.value.trim());
-        $('#sheets-token').value = Storage.getSheetsToken();
-        $('#sheets-token').onchange = e => Storage.setSheetsToken(e.target.value.trim());
         $('#export-json').onclick = handleExportJson;
         $('#export-csv').onclick = handleExportCsv;
         $('#import-json').onclick = () => $('#import-file').click();
@@ -768,25 +762,14 @@ const App = (() => {
         showView('summary');
     }
 
-    async function saveCurrentSession() {
+    function saveCurrentSession() {
         const user = Storage.getCurrentUser();
         const payload = Workout.buildSavablePayload(user.id);
         if (!payload) return;
+        // Storage.saveSession writes locally and pushes to Firebase asynchronously.
         Storage.saveSession(payload);
         lastSavedSession = payload;
         toast('Sesión guardada ✓', 'success');
-
-        // Try to sync to Sheets if configured
-        if (Storage.getSheetsUrl()) {
-            try {
-                await Storage.pushSession(payload, user);
-                toast('Sincronizado con Sheets ☁', 'success');
-            } catch (e) {
-                console.warn('Sync failed', e);
-                toast('Guardado local. Sheets falló: ' + e.message);
-            }
-        }
-
         Workout.abort();
         showView('home');
     }
@@ -932,7 +915,7 @@ const App = (() => {
                 </div>
             </form>
         `);
-        $('#add-user-form').onsubmit = async e => {
+        $('#add-user-form').onsubmit = e => {
             e.preventDefault();
             const routines = [...document.querySelectorAll('input[name="routine"]:checked')].map(c => c.value);
             const result = Auth.createUser({
@@ -946,10 +929,7 @@ const App = (() => {
             closeModal();
             renderUsers();
             toast('Usuario creado ✓', 'success');
-            // Try sheets sync
-            if (Storage.getSheetsUrl()) {
-                try { await Storage.pushUser(result.user); } catch (e) {}
-            }
+            // Storage.upsertUser already pushes to Firebase asynchronously.
         };
     }
 
@@ -1028,58 +1008,6 @@ const App = (() => {
             closeModal();
             toast('Contraseña actualizada ✓', 'success');
         };
-    }
-
-    function isValidSheetsUrl(url) {
-        if (!url) return false;
-        try {
-            const u = new URL(url);
-            // Apps Script Web App URLs are always HTTPS and on script.google.com
-            return u.protocol === 'https:' && /(^|\.)script\.google\.com$/i.test(u.hostname);
-        } catch (e) {
-            return false;
-        }
-    }
-
-    async function handleSheetsTest() {
-        const url = $('#sheets-url').value.trim();
-        if (!url) { setSheetsStatus('Pega una URL primero', 'err'); return; }
-        if (!isValidSheetsUrl(url)) {
-            setSheetsStatus('URL inválida. Debe ser https://script.google.com/...', 'err');
-            return;
-        }
-        Storage.setSheetsUrl(url);
-        setSheetsStatus('Probando...');
-        try {
-            const data = await Storage.pingSheets();
-            setSheetsStatus('Conexión OK · ' + escapeHtml(data.message || 'sheets listo'), 'ok');
-        } catch (e) {
-            setSheetsStatus('Falló: ' + escapeHtml(e.message), 'err');
-        }
-    }
-
-    async function handleSheetsSync() {
-        const url = $('#sheets-url').value.trim();
-        if (!url) { setSheetsStatus('Configura la URL primero', 'err'); return; }
-        if (!isValidSheetsUrl(url)) {
-            setSheetsStatus('URL inválida. Debe ser https://script.google.com/...', 'err');
-            return;
-        }
-        Storage.setSheetsUrl(url);
-        setSheetsStatus('Sincronizando todo...');
-        try {
-            const r = await Storage.pushAll();
-            setSheetsStatus(`Sincronizado: ${Number(r.usersWritten) || 0} usuarios, ${Number(r.sessionsWritten) || 0} sesiones`, 'ok');
-        } catch (e) {
-            setSheetsStatus('Error: ' + escapeHtml(e.message), 'err');
-        }
-    }
-
-    function setSheetsStatus(msg, cls = '') {
-        const el = $('#sheets-status');
-        // textContent makes any string XSS-safe
-        el.textContent = String(msg).replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&#039;/g, "'");
-        el.className = 'settings-status ' + cls;
     }
 
     function handleExportJson() {

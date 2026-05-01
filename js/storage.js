@@ -1,5 +1,6 @@
 /**
- * Storage layer - localStorage primary, Google Sheets sync optional
+ * Storage layer - localStorage as a fast cache, Firebase RTDB as source of truth.
+ * Every write also fires a non-blocking push to Firebase via the Cloud module.
  */
 
 const Storage = (() => {
@@ -7,7 +8,6 @@ const Storage = (() => {
         USERS: 'evt:users',
         SESSIONS: 'evt:sessions',
         CURRENT_USER: 'evt:currentUser',
-        SHEETS_URL: 'evt:sheetsUrl',
         BODYWEIGHT: 'evt:bodyweight',
         SETTINGS: 'evt:settings',
         OVERRIDES: 'evt:overrides',         // user-specific exercise overrides
@@ -183,18 +183,6 @@ const Storage = (() => {
         return addBodyMetric(userId, { date: date || new Date().toISOString(), weight: kg });
     }
 
-    // ===== SHEETS SYNC URL + TOKEN =====
-    function getSheetsUrl() { return localStorage.getItem(KEYS.SHEETS_URL) || ''; }
-    function setSheetsUrl(url) {
-        if (url) localStorage.setItem(KEYS.SHEETS_URL, url);
-        else localStorage.removeItem(KEYS.SHEETS_URL);
-    }
-    function getSheetsToken() { return localStorage.getItem('evt:sheetsToken') || ''; }
-    function setSheetsToken(token) {
-        if (token) localStorage.setItem('evt:sheetsToken', token);
-        else localStorage.removeItem('evt:sheetsToken');
-    }
-
     // ===== SETTINGS =====
     function getSettings() { return read(KEYS.SETTINGS, { autoSync: true, soundsEnabled: true }); }
     function saveSettings(s) { write(KEYS.SETTINGS, s); }
@@ -341,62 +329,6 @@ const Storage = (() => {
         if (data.settings) saveSettings(data.settings);
     }
 
-    // ===== GOOGLE SHEETS SYNC =====
-    async function syncToSheets(payload) {
-        const url = getSheetsUrl();
-        if (!url) throw new Error('No hay URL de Sheets configurada');
-        // Validate URL is from Apps Script (defense in depth)
-        try {
-            const u = new URL(url);
-            if (u.protocol !== 'https:' || !/(^|\.)script\.google\.com$/i.test(u.hostname)) {
-                throw new Error('URL no permitida');
-            }
-        } catch (e) {
-            throw new Error('URL inválida');
-        }
-        const token = getSheetsToken();
-        const fullPayload = token ? { token, ...payload } : payload;
-        const res = await fetch(url, {
-            method: 'POST',
-            headers: { 'Content-Type': 'text/plain;charset=utf-8' }, // avoid CORS preflight
-            body: JSON.stringify(fullPayload)
-        });
-        if (!res.ok) throw new Error('Error HTTP ' + res.status);
-        const data = await res.json();
-        if (!data.ok) throw new Error(data.error || 'Error en respuesta');
-        return data;
-    }
-
-    async function pingSheets() {
-        const url = getSheetsUrl();
-        if (!url) throw new Error('No hay URL configurada');
-        return syncToSheets({ action: 'ping' });
-    }
-
-    async function pushSession(session, user) {
-        return syncToSheets({
-            action: 'session',
-            user: { id: user.id, username: user.username, name: user.name },
-            session
-        });
-    }
-
-    async function pushUser(user) {
-        return syncToSheets({
-            action: 'user',
-            user: { id: user.id, username: user.username, name: user.name, role: user.role, createdAt: user.createdAt }
-        });
-    }
-
-    async function pushAll() {
-        return syncToSheets({
-            action: 'bulk',
-            users: getUsers().map(u => ({ id: u.id, username: u.username, name: u.name, role: u.role, createdAt: u.createdAt })),
-            sessions: getSessions(),
-            bodyweight: read(KEYS.BODYWEIGHT, {})
-        });
-    }
-
     // ===== INITIALIZE WITH DEFAULT ADMIN =====
     function initialize() {
         const users = getUsers();
@@ -538,9 +470,6 @@ const Storage = (() => {
         // bodyweight
         getBodyweight, addBodyweight,
         getBodyMetrics, addBodyMetric, deleteBodyMetric,
-        // sheets
-        getSheetsUrl, setSheetsUrl, getSheetsToken, setSheetsToken,
-        syncToSheets, pingSheets, pushSession, pushUser, pushAll,
         // settings
         getSettings, saveSettings,
         getUserSettings, saveUserSettings,
