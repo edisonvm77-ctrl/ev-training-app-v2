@@ -11,7 +11,8 @@
       "Bash(node -c js/app.js)",
       "Bash(node -c js/data.js)",
       "Bash(node -c js/illustrations.js)",
-      "Bash(grep -v \"= \\\\`\")"
+      "Bash(grep -v \"= \\\\`\")",
+      "Bash(node -c js/cloud.js)"
     ]
   }
 }

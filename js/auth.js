@@ -13,6 +13,41 @@ const Auth = (() => {
         return { ok: true, user };
     }
 
+    /**
+     * Async login that, if the username isn't found locally, falls back to
+     * looking up the user in Firebase. This lets new users sign in on a device
+     * that hasn't synced yet (e.g. when the link is shared with a friend).
+     */
+    async function loginAsync(username, password) {
+        const local = login(username, password);
+        if (local.ok) return local;
+        if (local.error !== 'Usuario no encontrado') return local;
+        // Try the cloud
+        if (typeof Cloud === 'undefined' || !Cloud.isReady()) return local;
+        try {
+            const idxSnap = await firebase.database().ref(Cloud.paths.userIndex(username)).once('value');
+            const userId = idxSnap.val();
+            if (!userId) return local;
+            const userSnap = await firebase.database().ref(Cloud.paths.user(userId)).once('value');
+            const remoteUser = userSnap.val();
+            if (!remoteUser) return local;
+            // Save into local cache (without re-uploading to avoid loop)
+            const users = Storage.getUsers();
+            const idx = users.findIndex(u => u.id === remoteUser.id);
+            if (idx >= 0) users[idx] = remoteUser; else users.push(remoteUser);
+            Storage.saveUsers(users);
+            // Verify password
+            if (!Storage.checkPassword(password, remoteUser.password)) {
+                return { ok: false, error: 'Contraseña incorrecta' };
+            }
+            Storage.setCurrentUser(remoteUser.id);
+            return { ok: true, user: remoteUser };
+        } catch (e) {
+            console.warn('[Auth] cloud lookup failed', e);
+            return local;
+        }
+    }
+
     function logout() {
         Storage.setCurrentUser(null);
     }
@@ -105,5 +140,5 @@ const Auth = (() => {
         return { ok: true, user };
     }
 
-    return { login, logout, isAdmin, createUser, changePassword, resetPassword, updateUser };
+    return { login, loginAsync, logout, isAdmin, createUser, changePassword, resetPassword, updateUser };
 })();

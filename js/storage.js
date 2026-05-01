@@ -33,6 +33,27 @@ const Storage = (() => {
         }
     }
 
+    /**
+     * Helper: send a cloud write. Never throws.
+     * Cloud queues the write internally if Firebase isn't ready yet so we
+     * always go through Cloud.set/.remove (it's safe).
+     */
+    function cloudSet(path, value) {
+        try {
+            if (typeof Cloud !== 'undefined' && Cloud.set) Cloud.set(path, value);
+        } catch (e) { /* swallow */ }
+    }
+    function cloudUpdate(path, partial) {
+        try {
+            if (typeof Cloud !== 'undefined' && Cloud.update) Cloud.update(path, partial);
+        } catch (e) { /* swallow */ }
+    }
+    function cloudRemove(path) {
+        try {
+            if (typeof Cloud !== 'undefined' && Cloud.remove) Cloud.remove(path);
+        } catch (e) { /* swallow */ }
+    }
+
     // ===== USERS =====
     function getUsers() { return read(KEYS.USERS, []); }
     function saveUsers(users) { return write(KEYS.USERS, users); }
@@ -46,14 +67,27 @@ const Storage = (() => {
         if (idx >= 0) users[idx] = user;
         else users.push(user);
         saveUsers(users);
+        // Push to cloud
+        cloudSet(Cloud.paths.user(user.id), user);
+        if (user.username) {
+            cloudSet(Cloud.paths.userIndex(user.username), user.id);
+        }
         return user;
     }
     function deleteUser(id) {
+        const target = getUser(id);
         const users = getUsers().filter(u => u.id !== id);
         saveUsers(users);
         // Also clear their sessions
         const sessions = getSessions().filter(s => s.userId !== id);
         saveSessions(sessions);
+        // Cloud cleanup
+        cloudRemove(Cloud.paths.user(id));
+        cloudRemove(Cloud.paths.userSessions(id));
+        cloudRemove(Cloud.paths.userBody(id));
+        cloudRemove(Cloud.paths.userOverrides(id));
+        cloudRemove(Cloud.paths.userSettings(id));
+        if (target && target.username) cloudRemove(Cloud.paths.userIndex(target.username));
     }
 
     // ===== CURRENT USER =====
@@ -78,11 +112,19 @@ const Storage = (() => {
         if (idx >= 0) all[idx] = session;
         else all.push(session);
         saveSessions(all);
+        // Push to cloud nested under user
+        if (session.userId && session.id) {
+            cloudSet(Cloud.paths.session(session.userId, session.id), session);
+        }
         return session;
     }
     function deleteSession(id) {
+        const target = getSessions().find(s => s.id === id);
         const sessions = getSessions().filter(s => s.id !== id);
         saveSessions(sessions);
+        if (target && target.userId) {
+            cloudRemove(Cloud.paths.session(target.userId, id));
+        }
     }
 
     // ===== BODY METRICS (weight + measurements) =====
@@ -120,6 +162,7 @@ const Storage = (() => {
         };
         all[userId].push(sanitized);
         write(KEYS.BODYWEIGHT, all);
+        cloudSet(Cloud.paths.bodyMetric(userId, sanitized.id), sanitized);
         return sanitized;
     }
     function deleteBodyMetric(userId, id) {
@@ -127,6 +170,7 @@ const Storage = (() => {
         if (!all[userId]) return;
         all[userId] = all[userId].filter(e => e.id !== id);
         write(KEYS.BODYWEIGHT, all);
+        cloudRemove(Cloud.paths.bodyMetric(userId, id));
     }
     function numOrNull(v) {
         if (v === '' || v == null) return null;
@@ -168,6 +212,7 @@ const Storage = (() => {
         const all = read(KEYS.USER_SETTINGS, {});
         all[userId] = { ...getUserSettings(userId), ...settings };
         write(KEYS.USER_SETTINGS, all);
+        cloudSet(Cloud.paths.userSettings(userId), all[userId]);
         return all[userId];
     }
 
@@ -219,6 +264,7 @@ const Storage = (() => {
         }
         all[userId][exerciseId] = sanitized;
         write(KEYS.OVERRIDES, all);
+        cloudSet(Cloud.paths.override(userId, exerciseId), sanitized);
         return sanitized;
     }
     function clearOverride(userId, exerciseId) {
@@ -227,6 +273,7 @@ const Storage = (() => {
             delete all[userId][exerciseId];
             write(KEYS.OVERRIDES, all);
         }
+        cloudRemove(Cloud.paths.override(userId, exerciseId));
     }
 
     // ===== EFFECTIVE EXERCISE =====
@@ -356,6 +403,112 @@ const Storage = (() => {
         if (users.length === 0) {
             const admin = { ...DEFAULT_ADMIN, password: hashPassword(DEFAULT_ADMIN.password) };
             saveUsers([admin]);
+            // Will get pushed to cloud after Cloud.init via hydrateFromCloud merge
+        }
+    }
+
+    /**
+     * Merge a remote snapshot from Firebase into local cache.
+     * Cloud is the source of truth: values present in both are taken from cloud.
+     * Local-only items are preserved (so an offline-created session is not wiped).
+     */
+    function hydrateFromCloud(snapshot) {
+        if (!snapshot || typeof snapshot !== 'object') return;
+
+        // Users: cloud is authoritative; replace local list with cloud users (plus any unsynced local).
+        if (snapshot.users && typeof snapshot.users === 'object') {
+            const remoteUsers = Object.values(snapshot.users).filter(u => u && u.id);
+            const localUsers = getUsers();
+            const merged = new Map();
+            for (const u of localUsers) merged.set(u.id, u);
+            for (const u of remoteUsers) merged.set(u.id, u); // remote overwrites
+            saveUsers([...merged.values()]);
+        }
+
+        // Sessions: union by id, remote wins on conflict
+        if (snapshot.sessions && typeof snapshot.sessions === 'object') {
+            const local = getSessions();
+            const merged = new Map();
+            for (const s of local) merged.set(s.id, s);
+            for (const userId in snapshot.sessions) {
+                const userSessions = snapshot.sessions[userId];
+                if (!userSessions) continue;
+                for (const sid in userSessions) {
+                    const s = userSessions[sid];
+                    if (s && s.id) merged.set(s.id, { ...s, userId });
+                }
+            }
+            saveSessions([...merged.values()]);
+        }
+
+        // Body metrics: union by id, remote wins
+        if (snapshot.bodyMetrics && typeof snapshot.bodyMetrics === 'object') {
+            const all = read(KEYS.BODYWEIGHT, {});
+            for (const userId in snapshot.bodyMetrics) {
+                const userMetrics = snapshot.bodyMetrics[userId] || {};
+                const local = (all[userId] || []);
+                const merged = new Map();
+                for (const e of local) if (e && e.id) merged.set(e.id, e);
+                for (const id in userMetrics) {
+                    const e = userMetrics[id];
+                    if (e && e.id) merged.set(e.id, e);
+                }
+                all[userId] = [...merged.values()];
+            }
+            write(KEYS.BODYWEIGHT, all);
+        }
+
+        // Overrides: cloud authoritative per (userId, exerciseId)
+        if (snapshot.overrides && typeof snapshot.overrides === 'object') {
+            const all = read(KEYS.OVERRIDES, {});
+            for (const userId in snapshot.overrides) {
+                if (!all[userId]) all[userId] = {};
+                const remote = snapshot.overrides[userId] || {};
+                for (const exId in remote) {
+                    all[userId][exId] = remote[exId];
+                }
+            }
+            write(KEYS.OVERRIDES, all);
+        }
+
+        // User settings: cloud authoritative
+        if (snapshot.userSettings && typeof snapshot.userSettings === 'object') {
+            const all = read(KEYS.USER_SETTINGS, {});
+            for (const userId in snapshot.userSettings) {
+                all[userId] = { ...(all[userId] || {}), ...(snapshot.userSettings[userId] || {}) };
+            }
+            write(KEYS.USER_SETTINGS, all);
+        }
+    }
+
+    /**
+     * Push the entire local cache to the cloud (once after first ever boot
+     * or after an import). Used to seed Firebase the first time.
+     */
+    function pushAllToCloud() {
+        if (typeof Cloud === 'undefined' || !Cloud.isReady()) return;
+        for (const u of getUsers()) {
+            cloudSet(Cloud.paths.user(u.id), u);
+            if (u.username) cloudSet(Cloud.paths.userIndex(u.username), u.id);
+        }
+        for (const s of getSessions()) {
+            if (s.userId && s.id) cloudSet(Cloud.paths.session(s.userId, s.id), s);
+        }
+        const bw = read(KEYS.BODYWEIGHT, {});
+        for (const userId in bw) {
+            for (const e of (bw[userId] || [])) {
+                if (e && e.id) cloudSet(Cloud.paths.bodyMetric(userId, e.id), e);
+            }
+        }
+        const ov = read(KEYS.OVERRIDES, {});
+        for (const userId in ov) {
+            for (const exId in (ov[userId] || {})) {
+                cloudSet(Cloud.paths.override(userId, exId), ov[userId][exId]);
+            }
+        }
+        const us = read(KEYS.USER_SETTINGS, {});
+        for (const userId in us) {
+            cloudSet(Cloud.paths.userSettings(userId), us[userId]);
         }
     }
 
@@ -375,6 +528,7 @@ const Storage = (() => {
     return {
         KEYS,
         initialize,
+        hydrateFromCloud, pushAllToCloud,
         // users
         getUsers, saveUsers, getUser, getUserByUsername, upsertUser, deleteUser,
         getCurrentUser, setCurrentUser,

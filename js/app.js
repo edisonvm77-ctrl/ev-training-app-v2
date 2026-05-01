@@ -53,9 +53,40 @@ const App = (() => {
     }
 
     // ===== INIT =====
-    function init() {
+    async function init() {
         Storage.initialize();
         bindLogin();
+        bindCloudIndicator();
+
+        // Try to bring up the cloud first (non-blocking after timeout).
+        // We give Firebase up to ~6s to initialize and pull. If it takes longer,
+        // we proceed offline and continue syncing in the background.
+        let pullPromise = null;
+        try {
+            const cloudReady = await Promise.race([
+                Cloud.init(),
+                new Promise(r => setTimeout(() => r(false), 6000))
+            ]);
+            if (cloudReady) {
+                pullPromise = Cloud.pullAll().then(snap => {
+                    if (snap && Object.keys(snap).length > 0) {
+                        Storage.hydrateFromCloud(snap);
+                    } else {
+                        // Cloud is empty: this is the first ever boot.
+                        // Push local data (default admin) so the cloud is initialized.
+                        Storage.pushAllToCloud();
+                    }
+                });
+                // Wait briefly for hydration so the user sees fresh data
+                await Promise.race([
+                    pullPromise,
+                    new Promise(r => setTimeout(r, 4000))
+                ]);
+            }
+        } catch (e) {
+            console.warn('[App] Cloud init failed, continuing offline:', e);
+        }
+
         const user = Storage.getCurrentUser();
         if (user) {
             $('#screen-login').classList.add('hidden');
@@ -63,27 +94,49 @@ const App = (() => {
         }
         // hide boot
         setTimeout(() => $('#boot').classList.add('fade-out'), 350);
-        setTimeout(() => $('#boot').remove(), 800);
+        setTimeout(() => { const b = $('#boot'); if (b) b.remove(); }, 800);
+    }
+
+    function bindCloudIndicator() {
+        // Live indicator updated by the Cloud module's state events.
+        Cloud.onState(state => {
+            const dot = document.getElementById('cloud-dot');
+            const lbl = document.getElementById('cloud-label');
+            if (!dot || !lbl) return;
+            dot.className = 'cloud-dot ' + (state.status || '');
+            const map = {
+                connecting: 'Conectando...',
+                connected: 'En la nube ✓',
+                unavailable: 'Sin nube',
+                error: 'Sin nube'
+            };
+            lbl.textContent = map[state.status] || '';
+        });
     }
 
     function bindLogin() {
         const form = $('#login-form');
-        form.addEventListener('submit', e => {
+        form.addEventListener('submit', async e => {
             e.preventDefault();
-            const username = $('#login-username').value.trim();
-            const password = $('#login-password').value;
-            const result = Auth.login(username, password);
-            if (!result.ok) {
-                $('#login-error').textContent = result.error;
-                return;
+            const submitBtn = form.querySelector('button[type="submit"]');
+            if (submitBtn) submitBtn.disabled = true;
+            try {
+                const username = $('#login-username').value.trim();
+                const password = $('#login-password').value;
+                const result = await Auth.loginAsync(username, password);
+                if (!result.ok) {
+                    $('#login-error').textContent = result.error;
+                    return;
+                }
+                $('#login-error').textContent = '';
+                $('#login-username').value = '';
+                $('#login-password').value = '';
+                $('#screen-login').classList.add('hidden');
+                showApp(result.user);
+            } finally {
+                if (submitBtn) submitBtn.disabled = false;
             }
-            $('#login-error').textContent = '';
-            $('#login-username').value = '';
-            $('#login-password').value = '';
-            $('#screen-login').classList.add('hidden');
-            showApp(result.user);
         });
-
     }
 
     function showApp(user) {

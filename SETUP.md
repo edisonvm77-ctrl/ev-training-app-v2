@@ -2,6 +2,56 @@
 
 App de seguimiento de entrenamiento personal con tu rutina pre-cargada del Excel "EV_Entrenamiento_ene/26.xlsx".
 
+**Almacenamiento:** Firebase Realtime Database como fuente de verdad + localStorage como caché para uso offline.
+
+---
+
+## ☁️ Configurar Firebase (paso obligatorio)
+
+La app está cableada al proyecto Firebase **`ev-training-a8989`**. Debes configurar dos cosas en la consola de Firebase:
+
+### 1. Activar Authentication anónima
+
+1. Entra a https://console.firebase.google.com/project/ev-training-a8989/authentication
+2. Click **Get started** si nunca has habilitado Auth
+3. Pestaña **Sign-in method** → habilita **Anonymous**
+4. Guarda
+
+### 2. Configurar reglas de la Realtime Database
+
+1. Entra a https://console.firebase.google.com/project/ev-training-a8989/database
+2. Pestaña **Rules**
+3. Pega estas reglas y publica:
+
+```json
+{
+  "rules": {
+    ".read": "auth != null",
+    ".write": "auth != null",
+    "users": {
+      "$uid": {
+        ".validate": "newData.hasChildren(['id', 'username'])"
+      }
+    },
+    "sessions": {
+      "$uid": {
+        "$sid": {
+          ".validate": "newData.hasChildren(['id', 'date'])"
+        }
+      }
+    }
+  }
+}
+```
+
+Estas reglas exigen que el cliente esté autenticado (la app firma anónimamente al iniciar) para leer/escribir.
+
+⚠ **Si quieres reglas más estrictas** (cada usuario solo puede ver sus propios datos) necesitarás migrar de auth anónima a auth Firebase con email/password. Para una app personal/familiar, las reglas anteriores son suficientes.
+
+### 3. (Opcional) Restringir el dominio del apiKey
+
+En Google Cloud Console > APIs & Services > Credentials > tu API key (Browser key) > Application restrictions: añade los dominios desde donde sirves la app (GitHub Pages, Netlify, etc.) para que el apiKey solo funcione desde ahí.
+
 ---
 
 ## 🚀 Inicio rápido (modo local)

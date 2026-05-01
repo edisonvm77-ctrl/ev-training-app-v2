@@ -111,6 +111,29 @@ input, select, textarea {
     font-size: 12px;
     color: var(--text-2);
 }
+.boot-cloud {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 11px;
+    color: var(--text-3);
+    margin-top: 10px;
+    font-weight: 500;
+}
+.cloud-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--text-3);
+    transition: background .3s ease;
+}
+.cloud-dot.connecting { background: var(--warning); animation: cloudPulse 1.2s ease-in-out infinite; }
+.cloud-dot.connected { background: var(--primary); box-shadow: 0 0 8px rgba(0, 255, 148, 0.6); }
+.cloud-dot.unavailable, .cloud-dot.error { background: var(--text-3); }
+@keyframes cloudPulse {
+    0%, 100% { opacity: 0.5; }
+    50% { opacity: 1; }
+}
 @keyframes bootPulse {
     0%, 100% { transform: scale(1); opacity: .9; }
     50% { transform: scale(1.05); opacity: 1; }
