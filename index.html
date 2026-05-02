@@ -3,16 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <meta name="theme-color" content="#0a0e1a">
+    <meta name="theme-color" content="#0E1620">
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
+    <meta name="apple-mobile-web-app-title" content="EV Training">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0' y1='0' x2='180' y2='180'><stop offset='0' stop-color='%235EEAB0'/><stop offset='1' stop-color='%23B5A8FF'/></linearGradient></defs><rect width='180' height='180' rx='40' fill='%230E1620'/><circle cx='90' cy='90' r='75' stroke='url(%23g)' stroke-width='5' opacity='0.35' fill='none'/><path d='M56 68 Q90 45 124 68 Q146 90 124 112 Q90 135 56 112 Q34 90 56 68 Z' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linecap='round'/><circle cx='90' cy='90' r='10' fill='url(%23g)'/></svg>">
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
     <title>EV Training · Gym Tracker</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=Space+Grotesk:wght@500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Space+Grotesk:wght@500;600;700&family=Fraunces:opsz,wght@9..144,300;9..144,400;9..144,500;9..144,600;9..144,700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="css/styles.css">
     <link rel="manifest" href="manifest.webmanifest">
 </head>
@@ -22,11 +24,13 @@
         <div class="boot-inner">
             <div class="boot-logo">
                 <svg viewBox="0 0 64 64" fill="none">
-                    <path d="M14 20 L14 44 M50 20 L50 44 M22 26 L22 38 M42 26 L42 38 M22 32 L42 32 M6 28 L6 36 M58 28 L58 36" stroke="url(#bootg)" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="28" stroke="url(#bootg)" stroke-width="2" opacity="0.3"/>
+                    <path d="M20 24 Q32 16 44 24 Q52 32 44 40 Q32 48 20 40 Q12 32 20 24 Z" fill="none" stroke="url(#bootg)" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="3" fill="url(#bootg)"/>
                     <defs>
                         <linearGradient id="bootg" x1="0" y1="0" x2="64" y2="64">
-                            <stop offset="0" stop-color="#00FF94"/>
-                            <stop offset="1" stop-color="#00B8FF"/>
+                            <stop offset="0" stop-color="#5EEAB0"/>
+                            <stop offset="1" stop-color="#B5A8FF"/>
                         </linearGradient>
                     </defs>
                 </svg>
@@ -46,16 +50,18 @@
         <div class="login-content">
             <div class="login-logo">
                 <svg viewBox="0 0 64 64" fill="none">
-                    <path d="M14 20 L14 44 M50 20 L50 44 M22 26 L22 38 M42 26 L42 38 M22 32 L42 32 M6 28 L6 36 M58 28 L58 36" stroke="url(#lg)" stroke-width="4" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="28" stroke="url(#lg)" stroke-width="2" opacity="0.3"/>
+                    <path d="M20 24 Q32 16 44 24 Q52 32 44 40 Q32 48 20 40 Q12 32 20 24 Z" fill="none" stroke="url(#lg)" stroke-width="2.5" stroke-linecap="round"/>
+                    <circle cx="32" cy="32" r="3" fill="url(#lg)"/>
                     <defs>
                         <linearGradient id="lg" x1="0" y1="0" x2="64" y2="64">
-                            <stop offset="0" stop-color="#00FF94"/>
-                            <stop offset="1" stop-color="#00B8FF"/>
+                            <stop offset="0" stop-color="#5EEAB0"/>
+                            <stop offset="1" stop-color="#B5A8FF"/>
                         </linearGradient>
                     </defs>
                 </svg>
             </div>
-            <h1 class="login-title">EV TRAINING</h1>
+            <h1 class="login-title">EV <em>Training</em></h1>
             <p class="login-subtitle">Tu compañero de entrenamiento</p>
 
             <form id="login-form" class="login-form">
@@ -93,15 +99,41 @@
         <!-- VIEW: HOME -->
         <section id="view-home" class="view active">
             <div class="hero">
-                <p class="hero-greeting">Hola, <span id="hero-name">Edison</span></p>
-                <h2 class="hero-title">¿Listo para entrenar?</h2>
+                <p class="hero-greeting">Hola, <span id="hero-name">Edison</span> 👋</p>
+                <h2 class="hero-title" id="hero-title">¿Cómo te sientes <em>hoy</em>?</h2>
                 <p class="hero-date" id="hero-date">Hoy</p>
+            </div>
+
+            <!-- Readiness ring + recovery insight -->
+            <div class="readiness-card" id="readiness-card">
+                <div class="readiness-left">
+                    <div class="readiness-ring-wrap">
+                        <svg class="readiness-ring" viewBox="0 0 120 120">
+                            <circle cx="60" cy="60" r="52" stroke="rgba(255,255,255,0.06)" stroke-width="8" fill="none"/>
+                            <circle id="readiness-ring-fg" cx="60" cy="60" r="52" stroke="url(#readyg)" stroke-width="8" fill="none" stroke-linecap="round" transform="rotate(-90 60 60)" stroke-dasharray="326.7" stroke-dashoffset="326.7"/>
+                            <defs>
+                                <linearGradient id="readyg" x1="0" y1="0" x2="120" y2="120">
+                                    <stop offset="0" stop-color="#5EEAB0"/>
+                                    <stop offset="1" stop-color="#B5A8FF"/>
+                                </linearGradient>
+                            </defs>
+                        </svg>
+                        <div class="readiness-ring-inner">
+                            <span class="readiness-emoji" id="readiness-emoji">🌱</span>
+                        </div>
+                    </div>
+                </div>
+                <div class="readiness-right">
+                    <p class="readiness-label" id="readiness-label">Tu estado</p>
+                    <p class="readiness-status" id="readiness-status">Listo</p>
+                    <p class="readiness-insight" id="readiness-insight">Has descansado lo suficiente.</p>
+                </div>
             </div>
 
             <div class="stats-row">
                 <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#00FF94,#00B8FF)">
-                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2v6m0 8v6M4.93 4.93l4.24 4.24m5.66 5.66l4.24 4.24M2 12h6m8 0h6M4.93 19.07l4.24-4.24m5.66-5.66l4.24-4.24" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#FFB088,#FF8A66)">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M12 2c1 4 4 5 4 9 0 3-2 5-4 5s-4-2-4-5c0-4 3-5 4-9z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><path d="M12 16v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </div>
                     <div class="stat-info">
                         <p class="stat-value" id="stat-streak">0</p>
@@ -109,8 +141,8 @@
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#7C5CFF,#5B8DEF)">
-                        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="2" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#B5A8FF,#7C5CFF)">
+                        <svg viewBox="0 0 24 24" fill="none"><rect x="3" y="4" width="18" height="18" rx="3" stroke="currentColor" stroke-width="2"/><path d="M16 2v4M8 2v4M3 10h18" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
                     </div>
                     <div class="stat-info">
                         <p class="stat-value" id="stat-month">0</p>
@@ -118,7 +150,7 @@
                     </div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-icon" style="background:linear-gradient(135deg,#00D9A3,#00B8FF)">
+                    <div class="stat-icon" style="background:linear-gradient(135deg,#5EEAB0,#3DC894)">
                         <svg viewBox="0 0 24 24" fill="none"><path d="M3 17l6-6 4 4 8-8" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/><path d="M14 7h7v7" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
                     </div>
                     <div class="stat-info">
@@ -256,18 +288,18 @@
                 </div>
             </div>
 
-            <!-- Rest Timer Overlay -->
+            <!-- Rest Timer Overlay (with breathing animation) -->
             <div id="rest-overlay" class="rest-overlay hidden">
                 <div class="rest-content">
-                    <p class="rest-label">DESCANSO</p>
+                    <p class="rest-label">RESPIRA</p>
                     <div class="rest-circle">
                         <svg viewBox="0 0 200 200">
-                            <circle cx="100" cy="100" r="90" stroke="rgba(255,255,255,0.08)" stroke-width="8" fill="none"/>
-                            <circle id="rest-circle-fg" cx="100" cy="100" r="90" stroke="url(#restg)" stroke-width="8" fill="none" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="565.48" stroke-dashoffset="0"/>
+                            <circle cx="100" cy="100" r="90" stroke="rgba(255,255,255,0.06)" stroke-width="6" fill="none"/>
+                            <circle id="rest-circle-fg" cx="100" cy="100" r="90" stroke="url(#restg)" stroke-width="6" fill="none" stroke-linecap="round" transform="rotate(-90 100 100)" stroke-dasharray="565.48" stroke-dashoffset="0"/>
                             <defs>
                                 <linearGradient id="restg" x1="0" y1="0" x2="200" y2="200">
-                                    <stop offset="0" stop-color="#00FF94"/>
-                                    <stop offset="1" stop-color="#00B8FF"/>
+                                    <stop offset="0" stop-color="#FFB088"/>
+                                    <stop offset="1" stop-color="#5EEAB0"/>
                                 </linearGradient>
                             </defs>
                         </svg>
@@ -275,7 +307,7 @@
                     </div>
                     <p class="rest-next" id="rest-next">Siguiente: Serie 2</p>
                     <div class="rest-actions">
-                        <button id="rest-minus" class="btn-circle">-15s</button>
+                        <button id="rest-minus" class="btn-circle">−15s</button>
                         <button id="rest-skip" class="btn btn-light">Saltar</button>
                         <button id="rest-plus" class="btn-circle">+15s</button>
                     </div>
@@ -588,6 +620,16 @@
         <div id="modal" class="modal hidden">
             <div class="modal-overlay"></div>
             <div class="modal-content" id="modal-content"></div>
+        </div>
+
+        <!-- PR CELEBRATION OVERLAY -->
+        <div id="pr-celebration" class="pr-celebration hidden">
+            <div class="pr-card">
+                <div class="pr-trophy">🏆</div>
+                <p class="pr-label">NUEVO RÉCORD</p>
+                <p class="pr-name" id="pr-name">—</p>
+                <p class="pr-value" id="pr-value">—</p>
+            </div>
         </div>
 
         <!-- IMAGE VIEWER (lightbox) -->

@@ -137,37 +137,110 @@ const Dashboard = (() => {
         });
     }
 
+    /**
+     * Calendar heatmap — last 12 weeks like GitHub.
+     * Replaces the old bar chart with a more glanceable visualization.
+     */
     function renderFrequencyChart(sessions) {
-        const ctx = document.getElementById('chart-frequency');
-        if (!ctx) return;
-        const counts = [0, 0, 0, 0, 0, 0, 0]; // Sun..Sat
-        for (const s of sessions) {
-            const d = new Date(s.date).getDay();
-            counts[d]++;
+        // Find or convert canvas to a div container
+        const canvas = document.getElementById('chart-frequency');
+        if (!canvas) return;
+        let container = canvas.parentElement;
+        // Replace the canvas with our custom div if not yet done
+        if (canvas.tagName === 'CANVAS') {
+            const div = document.createElement('div');
+            div.id = 'chart-frequency';
+            div.className = 'heatmap-wrap';
+            canvas.replaceWith(div);
+            container = div.parentElement;
         }
-        const labels = ['Dom','Lun','Mar','Mié','Jue','Vie','Sáb'];
+        const grid = document.getElementById('chart-frequency');
+        grid.innerHTML = '';
 
-        charts.frequency = new Chart(ctx, {
-            type: 'bar',
-            data: {
-                labels,
-                datasets: [{
-                    data: counts,
-                    backgroundColor: ctxObj => {
-                        const chart = ctxObj.chart;
-                        const { ctx: c, chartArea } = chart;
-                        if (!chartArea) return '#7C5CFF';
-                        const grad = c.createLinearGradient(0, chartArea.top, 0, chartArea.bottom);
-                        grad.addColorStop(0, '#00FF94');
-                        grad.addColorStop(1, '#00B8FF');
-                        return grad;
-                    },
-                    borderRadius: 8,
-                    borderSkipped: false
-                }]
-            },
-            options: chartOptions({ noUnit: true, integerY: true })
+        // Build last 84 days (12 weeks) ending today
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+        const sessionsByDate = new Map();
+        for (const s of sessions) {
+            const d = new Date(s.date);
+            d.setHours(0, 0, 0, 0);
+            const key = d.getTime();
+            sessionsByDate.set(key, (sessionsByDate.get(key) || 0) + 1);
+        }
+
+        // Compute volume max for intensity scaling
+        const days = [];
+        for (let i = 83; i >= 0; i--) {
+            const d = new Date(today);
+            d.setDate(today.getDate() - i);
+            const key = d.getTime();
+            const count = sessionsByDate.get(key) || 0;
+            days.push({ date: d, count });
+        }
+
+        // Render: 12 columns (weeks) x 7 rows (days), Mon..Sun
+        // Align so that the rightmost column ends with today
+        const monthLabel = document.createElement('div');
+        monthLabel.className = 'heatmap-months';
+        const dayLabels = document.createElement('div');
+        dayLabels.className = 'heatmap-days';
+        ['L', 'M', 'X', 'J', 'V', 'S', 'D'].forEach(label => {
+            const d = document.createElement('span');
+            d.textContent = label;
+            dayLabels.appendChild(d);
         });
+        const cells = document.createElement('div');
+        cells.className = 'heatmap-cells';
+
+        // Reorganize: rows = weekday (0=Mon..6=Sun), cols = week
+        const cellsByPos = [];
+        for (let r = 0; r < 7; r++) cellsByPos.push([]);
+        for (const day of days) {
+            // JS getDay: 0=Sun..6=Sat. Convert to Mon=0..Sun=6
+            const wd = (day.date.getDay() + 6) % 7;
+            cellsByPos[wd].push(day);
+        }
+
+        // Determine max count for color intensity
+        const maxCount = Math.max(1, ...days.map(d => d.count));
+
+        for (let r = 0; r < 7; r++) {
+            const row = document.createElement('div');
+            row.className = 'heatmap-row';
+            for (const day of cellsByPos[r]) {
+                const cell = document.createElement('div');
+                cell.className = 'heatmap-cell';
+                if (day.count === 0) {
+                    cell.classList.add('hm-empty');
+                } else {
+                    const level = Math.min(4, Math.ceil((day.count / maxCount) * 4));
+                    cell.classList.add('hm-l' + level);
+                }
+                if (day.date.getTime() === today.getTime()) cell.classList.add('hm-today');
+                cell.title = day.date.toLocaleDateString('es-ES', { weekday: 'short', day: 'numeric', month: 'short' }) + (day.count ? ` · ${day.count} sesión(es)` : ' · sin entrenamiento');
+                row.appendChild(cell);
+            }
+            cells.appendChild(row);
+        }
+
+        const wrap = document.createElement('div');
+        wrap.className = 'heatmap-inner';
+        wrap.appendChild(dayLabels);
+        wrap.appendChild(cells);
+        grid.appendChild(wrap);
+
+        const legend = document.createElement('div');
+        legend.className = 'heatmap-legend';
+        legend.innerHTML = `
+            <span>menos</span>
+            <span class="heatmap-cell hm-empty"></span>
+            <span class="heatmap-cell hm-l1"></span>
+            <span class="heatmap-cell hm-l2"></span>
+            <span class="heatmap-cell hm-l3"></span>
+            <span class="heatmap-cell hm-l4"></span>
+            <span>más</span>
+        `;
+        grid.appendChild(legend);
     }
 
     function renderExerciseSelector(userId) {
@@ -255,7 +328,7 @@ const Dashboard = (() => {
             }
         }
         if (records.size === 0) {
-            list.innerHTML = '<div style="text-align:center;color:var(--text-2);padding:20px 0;font-size:13px">Aún no hay récords. ¡Empieza a entrenar!</div>';
+            list.innerHTML = '<p style="text-align:center;color:var(--text-2);padding:18px 8px 6px;font-size:13px;line-height:1.5">Tus récords aparecerán aquí en cuanto completes tu primera sesión.</p>';
             return;
         }
         list.innerHTML = '';
@@ -275,33 +348,42 @@ const Dashboard = (() => {
         return {
             responsive: true,
             maintainAspectRatio: false,
+            animation: { duration: 1100, easing: 'easeOutCubic' },
             plugins: {
                 legend: { display: false },
                 tooltip: {
-                    backgroundColor: 'rgba(17, 22, 42, 0.95)',
-                    titleColor: '#fff',
-                    bodyColor: '#E5E9F2',
-                    borderColor: 'rgba(255,255,255,0.1)',
+                    backgroundColor: '#1A2530',
+                    titleColor: '#F2EBDA',
+                    bodyColor: '#DCD4C2',
+                    borderColor: 'rgba(94, 234, 176, 0.3)',
                     borderWidth: 1,
-                    padding: 10,
-                    cornerRadius: 8,
+                    padding: 12,
+                    cornerRadius: 14,
+                    boxPadding: 6,
+                    titleFont: { family: 'Fraunces', size: 14, weight: '500' },
+                    bodyFont: { family: 'Inter', size: 13 },
+                    displayColors: false,
                     callbacks: noUnit ? {} : {
-                        label: ctx => `${ctx.parsed.y} ${unit}`
+                        label: ctx => `${ctx.parsed.y.toLocaleString('es-ES')} ${unit}`
                     }
                 }
             },
             scales: {
                 x: {
                     grid: { display: false },
-                    ticks: { color: '#5C6480', font: { size: 11 } }
+                    border: { display: false },
+                    ticks: { color: '#646B7A', font: { family: 'Inter', size: 11, weight: 500 } }
                 },
                 y: {
                     beginAtZero: true,
-                    grid: { color: 'rgba(255,255,255,0.05)' },
+                    grid: { color: 'rgba(255, 235, 200, 0.04)', drawTicks: false },
+                    border: { display: false },
                     ticks: {
-                        color: '#5C6480',
-                        font: { size: 11 },
-                        precision: integerY ? 0 : undefined
+                        color: '#646B7A',
+                        font: { family: 'Inter', size: 11, weight: 500 },
+                        precision: integerY ? 0 : undefined,
+                        padding: 8,
+                        maxTicksLimit: 4
                     }
                 }
             }

@@ -39,6 +39,141 @@ const App = (() => {
         return [...builtins, ...customs.filter(r => allowedIds.includes(r.id) || !customIds.has(r.id))];
     }
 
+    /**
+     * Smoothly animate a number from current displayed value to target.
+     * Locale formatting is preserved.
+     */
+    function animateNumber(el, target, duration = 800) {
+        if (!el) return;
+        const start = parseInt(String(el.textContent).replace(/[^\d-]/g, ''), 10) || 0;
+        if (start === target) {
+            el.textContent = target.toLocaleString('es-ES');
+            return;
+        }
+        const t0 = performance.now();
+        const diff = target - start;
+        function tick(now) {
+            const t = Math.min(1, (now - t0) / duration);
+            // ease-out cubic
+            const eased = 1 - Math.pow(1 - t, 3);
+            const value = Math.round(start + diff * eased);
+            el.textContent = value.toLocaleString('es-ES');
+            if (t < 1) requestAnimationFrame(tick);
+        }
+        requestAnimationFrame(tick);
+    }
+
+    /**
+     * Compute a "readiness" state based on:
+     *  - days since last training (recovery)
+     *  - consecutive training days (overtraining risk)
+     * Returns { score 0-1, status, emoji, insight, label }
+     */
+    function computeReadiness(userId) {
+        const sessions = Storage.getUserSessions(userId);
+        if (sessions.length === 0) {
+            return {
+                score: 0.85,
+                status: 'Empezar',
+                emoji: '✨',
+                insight: 'Ningún entrenamiento aún. ¡Hoy es un buen día para tu primero!',
+                label: 'Tu estado'
+            };
+        }
+        const now = new Date();
+        const lastDate = new Date(sessions[0].date);
+        const daysSinceLast = Math.floor((now - lastDate) / 86400000);
+        // Count consecutive training days going back from today
+        const sessDates = new Set(sessions.map(s => new Date(s.date).toDateString()));
+        let consecutive = 0;
+        const cur = new Date();
+        for (let i = 0; i < 14; i++) {
+            if (sessDates.has(cur.toDateString())) consecutive++;
+            else if (i > 0) break;
+            cur.setDate(cur.getDate() - 1);
+        }
+
+        // Same-routine recovery (group by routineId of last session)
+        const lastRoutineId = sessions[0].routineId;
+        const sameRoutineLast = sessions.find((s, i) => i > 0 && s.routineId === lastRoutineId);
+        const daysSameMuscle = sameRoutineLast
+            ? Math.floor((now - new Date(sameRoutineLast.date)) / 86400000)
+            : 99;
+
+        // Score logic
+        if (daysSinceLast === 0 && consecutive >= 5) {
+            return {
+                score: 0.25,
+                status: 'Descansa',
+                emoji: '🌙',
+                insight: `Llevas ${consecutive} días seguidos entrenando. Hoy puede ser un día de recuperación.`,
+                label: 'Tu estado'
+            };
+        }
+        if (consecutive >= 4) {
+            return {
+                score: 0.5,
+                status: 'Toma con calma',
+                emoji: '🍃',
+                insight: `Llevas ${consecutive} sesiones seguidas. Escucha a tu cuerpo hoy.`,
+                label: 'Tu estado'
+            };
+        }
+        if (daysSinceLast === 0) {
+            return {
+                score: 0.7,
+                status: 'Activo',
+                emoji: '💪',
+                insight: 'Ya entrenaste hoy. ¿Quieres añadir algo ligero o descansar?',
+                label: 'Tu estado'
+            };
+        }
+        if (daysSinceLast === 1) {
+            return {
+                score: 0.95,
+                status: 'Listo',
+                emoji: '🌿',
+                insight: 'Día perfecto para entrenar. Tu cuerpo está recuperado.',
+                label: 'Tu estado'
+            };
+        }
+        if (daysSinceLast >= 7) {
+            return {
+                score: 1,
+                status: 'Reactivar',
+                emoji: '🔆',
+                insight: `Hace ${daysSinceLast} días que no entrenas. Empieza suave para reactivar el ritmo.`,
+                label: 'Tu estado'
+            };
+        }
+        return {
+            score: 0.9,
+            status: 'Listo',
+            emoji: '🌱',
+            insight: `Han pasado ${daysSinceLast} días desde tu último entrenamiento. Estás bien recuperado.`,
+            label: 'Tu estado'
+        };
+    }
+
+    function renderReadiness(user) {
+        const r = computeReadiness(user.id);
+        $('#readiness-status').textContent = r.status;
+        $('#readiness-insight').textContent = r.insight;
+        $('#readiness-emoji').textContent = r.emoji;
+        $('#readiness-label').textContent = r.label;
+        // Animate the ring
+        const circumference = 2 * Math.PI * 52;
+        const offset = circumference * (1 - r.score);
+        const fg = $('#readiness-ring-fg');
+        if (fg) {
+            // Reset to 0 first to trigger animation
+            fg.style.strokeDashoffset = circumference;
+            requestAnimationFrame(() => {
+                fg.style.strokeDashoffset = offset;
+            });
+        }
+    }
+
     function fmtSec(sec) {
         const m = Math.floor(sec / 60);
         const s = sec % 60;
@@ -86,6 +221,7 @@ const App = (() => {
         Storage.initialize();
         bindLogin();
         bindCloudIndicator();
+        registerServiceWorker();
 
         // Try to bring up the cloud first (non-blocking after timeout).
         // We give Firebase up to ~6s to initialize and pull. If it takes longer,
@@ -124,6 +260,22 @@ const App = (() => {
         // hide boot
         setTimeout(() => $('#boot').classList.add('fade-out'), 350);
         setTimeout(() => { const b = $('#boot'); if (b) b.remove(); }, 800);
+    }
+
+    /**
+     * Register the service worker so the app is installable as PWA and
+     * works offline once cached. Silently fails on unsupported browsers
+     * (older iOS, http://) — the app still runs perfectly without it.
+     */
+    function registerServiceWorker() {
+        if (!('serviceWorker' in navigator)) return;
+        // Avoid registration on file:// where SW is unsupported
+        if (location.protocol !== 'https:' && location.hostname !== 'localhost' && location.hostname !== '127.0.0.1') return;
+        window.addEventListener('load', () => {
+            navigator.serviceWorker.register('./sw.js')
+                .then(reg => console.log('[SW] registered, scope:', reg.scope))
+                .catch(err => console.warn('[SW] registration failed:', err));
+        });
     }
 
     function bindCloudIndicator() {
@@ -302,7 +454,7 @@ const App = (() => {
     }
 
     function handleLogout() {
-        if (!confirm('¿Cerrar sesión?')) return;
+        if (!confirm('¿Cerrar sesión? Tus datos quedan guardados, podrás volver cuando quieras.')) return;
         Auth.logout();
         $('#app').classList.add('hidden');
         $('#screen-login').classList.remove('hidden');
@@ -354,13 +506,24 @@ const App = (() => {
         const user = Storage.getCurrentUser();
         if (!user) return;
 
-        // Update greeting with safe text
+        // Update greeting with empathetic time-aware copy
         $('#hero-name').textContent = user.name || user.username;
+        const hour = new Date().getHours();
+        let greeting;
+        if (hour < 6) greeting = '¿Madrugaste para entrenar?';
+        else if (hour < 12) greeting = '¿Cómo te sientes <em>hoy</em>?';
+        else if (hour < 18) greeting = 'Buena tarde para <em>moverte</em>';
+        else if (hour < 22) greeting = '¿Una sesión antes de <em>cerrar</em> el día?';
+        else greeting = 'Tarde pero <em>posible</em>';
+        $('#hero-title').innerHTML = greeting;
 
-        // Stats
-        $('#stat-streak').textContent = Dashboard.calcStreak(user.id);
-        $('#stat-month').textContent = Dashboard.calcMonthSessions(user.id);
-        $('#stat-volume').textContent = Math.round(Dashboard.calcMonthVolume(user.id)).toLocaleString('es-ES');
+        // Readiness ring
+        renderReadiness(user);
+
+        // Stats with count-up animation
+        animateNumber($('#stat-streak'), Dashboard.calcStreak(user.id));
+        animateNumber($('#stat-month'), Dashboard.calcMonthSessions(user.id));
+        animateNumber($('#stat-volume'), Math.round(Dashboard.calcMonthVolume(user.id)));
 
         // Routines (built-in + user's custom routines from imported Excel)
         const list = $('#routines-list');
@@ -401,7 +564,7 @@ const App = (() => {
         const lastEl = $('#last-session');
         const lastSessions = Storage.getUserSessions(user.id);
         if (lastSessions.length === 0) {
-            lastEl.innerHTML = '<p style="margin:0;text-align:center">Sin sesiones registradas. ¡Empieza tu primera rutina!</p>';
+            lastEl.innerHTML = '<p style="margin:0;text-align:center;color:var(--text-2);font-size:14px">Cuando entrenes, esta tarjeta te recordará lo que hiciste.</p>';
             lastEl.classList.remove('has-data');
         } else {
             const s = lastSessions[0];
@@ -750,7 +913,7 @@ const App = (() => {
     }
 
     function handleExitWorkout() {
-        if (!confirm('¿Salir del entrenamiento? Se perderá el progreso.')) return;
+        if (!confirm('¿Pausar este entrenamiento? Lo que llevas en esta sesión no se guardará.')) return;
         Workout.abort();
         $('#rest-overlay').classList.add('hidden');
         showView('home');
@@ -798,12 +961,107 @@ const App = (() => {
         const user = Storage.getCurrentUser();
         const payload = Workout.buildSavablePayload(user.id);
         if (!payload) return;
-        // Storage.saveSession writes locally and pushes to Firebase asynchronously.
+
+        // Detect PRs BEFORE persisting (so we compare against history)
+        const prs = detectPRs(payload, user.id);
+
         Storage.saveSession(payload);
         lastSavedSession = payload;
-        toast('Sesión guardada ✓', 'success');
+
+        // Friendly micro-copy variation
+        const messages = [
+            '¡Bien hecho! Sesión guardada',
+            'Sesión guardada ✓ buen trabajo',
+            'Listo. Hoy sumaste otra sesión',
+            'Bien — ya queda registrado'
+        ];
+        toast(messages[Math.floor(Math.random() * messages.length)], 'success');
+
+        // Celebrate the biggest PR if any
+        if (prs.length > 0) {
+            const top = prs.sort((a, b) => b.weight - a.weight)[0];
+            setTimeout(() => celebratePR(top), 350);
+        }
+
         Workout.abort();
         showView('home');
+    }
+
+    /**
+     * Compare the just-finished session against the user's history to find
+     * exercises where they hit a new max weight. Returns array of PR objects.
+     */
+    function detectPRs(payload, userId) {
+        const history = Storage.getUserSessions(userId);
+        const prs = [];
+        for (const ex of payload.exercises || []) {
+            // Best weight in this session
+            const sessionMax = ex.sets
+                .filter(s => s.completed && s.weight > 0)
+                .reduce((m, s) => Math.max(m, s.weight), 0);
+            if (sessionMax === 0) continue;
+            // Best weight in any prior session for the same exercise
+            let priorMax = 0;
+            let prevReps = 0;
+            for (const past of history) {
+                if (past.id === payload.id) continue;
+                const pastEx = (past.exercises || []).find(e => e.id === ex.id);
+                if (!pastEx) continue;
+                for (const s of pastEx.sets || []) {
+                    if (s.completed && s.weight > priorMax) {
+                        priorMax = s.weight;
+                        prevReps = s.reps;
+                    }
+                }
+            }
+            if (sessionMax > priorMax) {
+                const bestSet = ex.sets
+                    .filter(s => s.completed && s.weight === sessionMax)
+                    .sort((a, b) => (b.reps || 0) - (a.reps || 0))[0];
+                prs.push({
+                    name: ex.name,
+                    weight: sessionMax,
+                    reps: bestSet?.reps || 0,
+                    diff: priorMax > 0 ? sessionMax - priorMax : null
+                });
+            }
+        }
+        return prs;
+    }
+
+    function celebratePR(pr) {
+        const overlay = $('#pr-celebration');
+        if (!overlay) return;
+        $('#pr-name').textContent = pr.name;
+        $('#pr-value').textContent = `${pr.weight} kg × ${pr.reps}`;
+        overlay.classList.remove('hidden');
+        playPRSound();
+        try { if (navigator.vibrate) navigator.vibrate([120, 60, 120, 60, 240]); } catch (e) {}
+        setTimeout(() => overlay.classList.add('hidden'), 2400);
+        setTimeout(() => overlay.onclick = null, 2400);
+        overlay.onclick = () => overlay.classList.add('hidden');
+    }
+
+    function playPRSound() {
+        if (!audioAllowed()) return;
+        try {
+            const ctx = new (window.AudioContext || window.webkitAudioContext)();
+            // Major triad (C-E-G) — uplifting
+            [523.25, 659.25, 783.99].forEach((freq, i) => {
+                const osc = ctx.createOscillator();
+                const gain = ctx.createGain();
+                osc.type = 'triangle';
+                osc.frequency.value = freq;
+                const start = ctx.currentTime + i * 0.08;
+                gain.gain.setValueAtTime(0, start);
+                gain.gain.linearRampToValueAtTime(0.16, start + 0.02);
+                gain.gain.exponentialRampToValueAtTime(0.001, start + 0.5);
+                osc.connect(gain); gain.connect(ctx.destination);
+                osc.start(start);
+                osc.stop(start + 0.5);
+            });
+            setTimeout(() => ctx.close().catch(()=>{}), 1500);
+        } catch (e) {}
     }
 
     // ===== HISTORY =====
@@ -812,12 +1070,15 @@ const App = (() => {
         const sessions = Storage.getUserSessions(user.id);
         const list = $('#history-list');
         if (sessions.length === 0) {
-            list.innerHTML = `
-                <div style="text-align:center;color:var(--text-2);padding:40px 20px">
-                    <div style="font-size:48px;margin-bottom:12px">📋</div>
-                    <p style="margin:0">Aún no tienes sesiones guardadas</p>
-                </div>
-            `;
+            const es = emptyState({
+                illu: 'history',
+                title: 'Tu historia empieza aquí',
+                subtitle: 'Cuando completes tu primera sesión, aparecerá en este espacio.',
+                btn: 'Ver rutinas',
+                onBtn: () => showView('home')
+            });
+            list.innerHTML = es.html;
+            es.bind();
             return;
         }
         list.innerHTML = '';
@@ -843,30 +1104,91 @@ const App = (() => {
     }
 
     function showSessionDetails(s) {
-        const dt = new Date(s.date);
-        let html = `
-            <h3>${escapeHtml(s.routineName || '')}</h3>
-            <p style="margin:-10px 0 14px;color:var(--text-2);font-size:13px">${fmtDate(dt)} · ${Math.round((s.durationSec || 0) / 60)} min</p>
+        // Deep-clone so we can edit without mutating Storage until "Save"
+        const draft = JSON.parse(JSON.stringify(s));
+        const dt = new Date(draft.date);
+
+        const exercisesHtml = draft.exercises.map((ex, eIdx) => {
+            const setsHtml = ex.sets.map((set, sIdx) => `
+                <div class="hist-set-row" data-ex="${eIdx}" data-set="${sIdx}">
+                    <div class="hist-set-num">${Number(set.idx) || (sIdx + 1)}</div>
+                    <div class="hist-set-input">
+                        <label>kg</label>
+                        <input type="number" inputmode="decimal" step="0.5" data-field="weight" value="${set.weight ?? ''}" placeholder="–">
+                    </div>
+                    <div class="hist-set-input">
+                        <label>reps</label>
+                        <input type="number" inputmode="numeric" data-field="reps" value="${set.reps ?? ''}" placeholder="–">
+                    </div>
+                    <button type="button" class="hist-set-check ${set.completed ? 'completed' : ''}" data-field="completed" aria-label="Toggle completada">
+                        <svg viewBox="0 0 24 24" fill="none"><path d="M5 12l5 5L20 7" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                    </button>
+                </div>
+            `).join('');
+            return `
+                <div class="hist-ex">
+                    <h4>${escapeHtml(ex.name || '')}</h4>
+                    <div class="hist-sets">${setsHtml}</div>
+                </div>
+            `;
+        }).join('');
+
+        const html = `
+            <h3>${escapeHtml(draft.routineName || '')}</h3>
+            <p class="hist-date">${fmtDate(dt)} · ${Math.round((draft.durationSec || 0) / 60)} min</p>
+            <p class="hist-help">Toca cualquier valor para editarlo. El check marca/desmarca la serie.</p>
+            <div id="hist-ex-list">${exercisesHtml}</div>
+            <div class="hist-actions">
+                <button type="button" class="btn btn-danger" id="hist-delete-btn">Eliminar</button>
+                <button type="button" class="btn btn-primary" id="hist-save-btn" style="flex:1">Guardar cambios</button>
+            </div>
         `;
-        for (const ex of s.exercises) {
-            html += `<div style="border:1px solid var(--border);border-radius:14px;padding:14px;margin-bottom:10px">
-                <p style="margin:0 0 8px;font-weight:600;font-size:14px">${escapeHtml(ex.name || '')}</p>`;
-            for (const set of ex.sets) {
-                const ok = set.completed ? '✅' : '⚪';
-                const w = (set.weight === null || set.weight === undefined || set.weight === '') ? '-' : Number(set.weight);
-                const r = (set.reps === null || set.reps === undefined || set.reps === '') ? '-' : Number(set.reps);
-                html += `<div style="font-size:13px;color:var(--text-1);padding:3px 0;display:flex;justify-content:space-between">
-                    <span>Serie ${Number(set.idx) || ''} ${ok}</span>
-                    <span>${w} kg × ${r} reps</span>
-                </div>`;
-            }
-            html += '</div>';
-        }
-        // Use a button reference instead of inline onclick to avoid HTML-injection through s.id
-        html += `<button class="btn btn-danger btn-block" id="delete-session-btn" style="margin-top:8px">Eliminar sesión</button>`;
         showModal(html);
-        const delBtn = document.getElementById('delete-session-btn');
-        if (delBtn) delBtn.onclick = () => App.deleteSession(s.id);
+
+        // Wire input changes into the draft
+        const list = document.getElementById('hist-ex-list');
+        list.querySelectorAll('input').forEach(inp => {
+            inp.addEventListener('input', () => {
+                const row = inp.closest('.hist-set-row');
+                const eIdx = parseInt(row.dataset.ex, 10);
+                const sIdx = parseInt(row.dataset.set, 10);
+                const field = inp.dataset.field;
+                let val = inp.value === '' ? null : (field === 'reps' ? parseInt(inp.value, 10) : parseFloat(inp.value));
+                if (Number.isNaN(val)) val = null;
+                draft.exercises[eIdx].sets[sIdx][field] = val;
+            });
+        });
+        list.querySelectorAll('.hist-set-check').forEach(btn => {
+            btn.addEventListener('click', () => {
+                const row = btn.closest('.hist-set-row');
+                const eIdx = parseInt(row.dataset.ex, 10);
+                const sIdx = parseInt(row.dataset.set, 10);
+                const set = draft.exercises[eIdx].sets[sIdx];
+                set.completed = !set.completed;
+                btn.classList.toggle('completed', set.completed);
+            });
+        });
+
+        document.getElementById('hist-delete-btn').onclick = () => App.deleteSession(draft.id);
+        document.getElementById('hist-save-btn').onclick = () => {
+            // Recalculate totals from the edited sets
+            let sets = 0, reps = 0, volume = 0;
+            for (const ex of draft.exercises) {
+                for (const set of ex.sets) {
+                    if (set.completed) {
+                        sets++;
+                        reps += Number(set.reps) || 0;
+                        volume += (Number(set.weight) || 0) * (Number(set.reps) || 0);
+                    }
+                }
+            }
+            draft.totals = { sets, reps, volume: Math.round(volume) };
+            // Persist (writes locally + pushes to Firebase)
+            Storage.saveSession(draft);
+            closeModal();
+            renderHistory();
+            toast('Sesión actualizada ✓', 'success');
+        };
     }
 
     function deleteSession(id) {
@@ -1668,7 +1990,15 @@ const App = (() => {
         const entries = Storage.getBodyMetrics(user.id);
         const list = $('#body-history-list');
         if (entries.length === 0) {
-            list.innerHTML = `<div style="text-align:center;color:var(--text-2);padding:24px 12px;font-size:13px">Aún no tienes mediciones. Toca "Nueva medición" para empezar.</div>`;
+            const es = emptyState({
+                illu: 'body',
+                title: 'Toma tu primera medición',
+                subtitle: 'Registra peso o medidas para ver cómo evoluciona tu cuerpo a lo largo del tiempo.',
+                btn: 'Nueva medición',
+                onBtn: showAddBodyMetric
+            });
+            list.innerHTML = es.html;
+            es.bind();
             return;
         }
         list.innerHTML = '';
@@ -1972,6 +2302,92 @@ const App = (() => {
         XLSX.utils.book_append_sheet(wb, ws, 'Rutina');
         XLSX.writeFile(wb, 'plantilla_rutina_ev_training.xlsx');
         toast('Plantilla descargada ✓', 'success');
+    }
+
+    // ===== EMPTY-STATE ILLUSTRATIONS =====
+    /**
+     * Hand-drawn-feeling SVG illustrations for empty/loading states.
+     * Stroke-based, slightly imperfect curves, paired with our palette.
+     */
+    const EMPTY_ILLUS = {
+        firstWorkout: `
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="es1" x1="0" y1="0" x2="200" y2="200">
+                        <stop offset="0" stop-color="#5EEAB0"/>
+                        <stop offset="1" stop-color="#B5A8FF"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="100" cy="100" r="70" stroke="url(#es1)" stroke-width="2.5" stroke-dasharray="3 6" opacity="0.6"/>
+                <path d="M70 110 Q85 80 100 95 T130 95" stroke="url(#es1)" stroke-width="3" stroke-linecap="round" fill="none"/>
+                <circle cx="70" cy="110" r="5" fill="url(#es1)"/>
+                <circle cx="130" cy="95" r="5" fill="url(#es1)"/>
+                <path d="M100 140 L100 155 M85 150 L115 150" stroke="url(#es1)" stroke-width="3" stroke-linecap="round" opacity="0.5"/>
+                <text x="100" y="180" text-anchor="middle" font-family="Fraunces" font-size="13" fill="#9BA1B0" font-style="italic">tu primera huella</text>
+            </svg>`,
+        history: `
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="es2" x1="0" y1="0" x2="200" y2="200">
+                        <stop offset="0" stop-color="#5EEAB0"/>
+                        <stop offset="1" stop-color="#B5A8FF"/>
+                    </linearGradient>
+                </defs>
+                <rect x="50" y="40" width="100" height="130" rx="14" stroke="url(#es2)" stroke-width="2.5" fill="none"/>
+                <path d="M65 65 L135 65 M65 90 L120 90 M65 115 L130 115 M65 140 L110 140" stroke="url(#es2)" stroke-width="2" stroke-linecap="round" opacity="0.5"/>
+                <circle cx="55" cy="65" r="3" fill="url(#es2)"/>
+                <circle cx="55" cy="90" r="3" fill="url(#es2)"/>
+                <circle cx="55" cy="115" r="3" fill="url(#es2)" opacity="0.6"/>
+            </svg>`,
+        records: `
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="es3" x1="0" y1="0" x2="200" y2="200">
+                        <stop offset="0" stop-color="#FFB088"/>
+                        <stop offset="1" stop-color="#5EEAB0"/>
+                    </linearGradient>
+                </defs>
+                <path d="M75 60 L100 35 L125 60 L120 105 Q100 125 80 105 Z" stroke="url(#es3)" stroke-width="2.5" fill="none" stroke-linejoin="round"/>
+                <path d="M85 75 L100 90 L115 70" stroke="url(#es3)" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
+                <path d="M100 125 L100 145 M85 145 L115 145 M80 160 L120 160" stroke="url(#es3)" stroke-width="2.5" stroke-linecap="round" opacity="0.6"/>
+                <circle cx="55" cy="75" r="3" fill="url(#es3)" opacity="0.5"/>
+                <circle cx="150" cy="80" r="3" fill="url(#es3)" opacity="0.5"/>
+                <circle cx="60" cy="115" r="2" fill="url(#es3)" opacity="0.4"/>
+            </svg>`,
+        body: `
+            <svg viewBox="0 0 200 200" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs>
+                    <linearGradient id="es4" x1="0" y1="0" x2="200" y2="200">
+                        <stop offset="0" stop-color="#B5A8FF"/>
+                        <stop offset="1" stop-color="#5EEAB0"/>
+                    </linearGradient>
+                </defs>
+                <circle cx="100" cy="60" r="22" stroke="url(#es4)" stroke-width="2.5" fill="none"/>
+                <path d="M75 95 Q75 130 100 145 Q125 130 125 95" stroke="url(#es4)" stroke-width="2.5" fill="none" stroke-linecap="round"/>
+                <path d="M75 100 L60 130 M125 100 L140 130" stroke="url(#es4)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M90 145 L85 175 M110 145 L115 175" stroke="url(#es4)" stroke-width="2.5" stroke-linecap="round"/>
+                <path d="M50 150 Q100 170 150 150" stroke="url(#es4)" stroke-width="1.5" stroke-dasharray="2 4" opacity="0.5"/>
+            </svg>`
+    };
+
+    function emptyState({ illu = 'firstWorkout', title, subtitle, btn, onBtn }) {
+        const id = 'empty-btn-' + Math.random().toString(36).slice(2, 8);
+        const html = `
+            <div class="empty-state">
+                <div class="empty-state-illu">${EMPTY_ILLUS[illu] || EMPTY_ILLUS.firstWorkout}</div>
+                <h3>${escapeHtml(title)}</h3>
+                <p>${escapeHtml(subtitle)}</p>
+                ${btn ? `<button class="btn btn-primary" id="${id}">${escapeHtml(btn)}</button>` : ''}
+            </div>
+        `;
+        // Return both the HTML and a binder for the button
+        return {
+            html,
+            bind() {
+                const b = document.getElementById(id);
+                if (b && onBtn) b.onclick = onBtn;
+            }
+        };
     }
 
     function escapeHtml(str) {

@@ -13,7 +13,8 @@
       "Bash(node -c js/illustrations.js)",
       "Bash(grep -v \"= \\\\`\")",
       "Bash(node -c js/cloud.js)",
-      "Bash(node -c js/select.js)"
+      "Bash(node -c js/select.js)",
+      "Bash(node -c sw.js)"
     ]
   }
 }
