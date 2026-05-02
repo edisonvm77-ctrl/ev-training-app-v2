@@ -71,6 +71,7 @@ const Dashboard = (() => {
 
     function render(userId, period = 'month') {
         const sessions = filterSessions(userId, period);
+        const allSessions = Storage.getUserSessions(userId);
         const totals = calcTotals(sessions);
         const prev = calcPrevTotals(userId, period);
 
@@ -93,11 +94,326 @@ const Dashboard = (() => {
         elc4.textContent = c4.txt; elc4.className = 'dash-stat-change ' + c4.cls;
 
         destroyCharts();
+        renderInsights(userId, sessions, allSessions);
         renderVolumeChart(sessions);
-        renderFrequencyChart(sessions);
+        renderFrequencyChart(allSessions);
+        renderMuscleDistribution(sessions);
+        renderTopExercises(sessions);
         renderExerciseSelector(userId);
         renderExerciseChart(userId, document.getElementById('dash-exercise').value);
+        render1RMs(allSessions);
         renderRecords(userId);
+        renderPRTimeline(allSessions);
+    }
+
+    // ===== HELPERS for new visualizations =====
+    function escapeText(s) {
+        return String(s == null ? '' : s)
+            .replace(/&/g, '&amp;')
+            .replace(/</g, '&lt;')
+            .replace(/>/g, '&gt;')
+            .replace(/"/g, '&quot;');
+    }
+
+    /**
+     * Compute insights for the period: best day of week, average duration,
+     * sessions per week.
+     */
+    function calcInsights(sessions) {
+        if (sessions.length === 0) return { hasData: false };
+        const dayCounts = [0,0,0,0,0,0,0];
+        const dayNames = ['Domingo','Lunes','Martes','Miércoles','Jueves','Viernes','Sábado'];
+        let totalSec = 0;
+        for (const s of sessions) {
+            dayCounts[new Date(s.date).getDay()]++;
+            totalSec += (s.durationSec || 0);
+        }
+        const maxCount = Math.max(...dayCounts);
+        const bestDayIdx = dayCounts.indexOf(maxCount);
+        const avgMin = Math.round(totalSec / sessions.length / 60);
+
+        // Sessions per week across the active span
+        const dates = sessions.map(s => new Date(s.date).getTime()).sort((a, b) => a - b);
+        const spanMs = Math.max(86400000, dates[dates.length - 1] - dates[0]);
+        const spanWeeks = Math.max(1, spanMs / (7 * 86400000));
+        const sessionsPerWeek = (sessions.length / spanWeeks);
+
+        return {
+            hasData: true,
+            bestDay: dayNames[bestDayIdx],
+            bestDayCount: maxCount,
+            avgMin,
+            sessionsPerWeek
+        };
+    }
+
+    function renderInsights(userId, sessions) {
+        const container = document.getElementById('dash-insights');
+        if (!container) return;
+        const i = calcInsights(sessions);
+        if (!i.hasData) {
+            container.innerHTML = '<p style="grid-column:1/-1;text-align:center;color:var(--text-3);font-size:13px;padding:8px 0">Aparecerán insights cuando completes algunas sesiones más.</p>';
+            return;
+        }
+        container.innerHTML = `
+            <div class="insight-card">
+                <span class="insight-icon">📅</span>
+                <p class="insight-label">Mejor día</p>
+                <p class="insight-value">${escapeText(i.bestDay)}</p>
+                <p class="insight-meta">${i.bestDayCount} ${i.bestDayCount === 1 ? 'sesión' : 'sesiones'}</p>
+            </div>
+            <div class="insight-card">
+                <span class="insight-icon">⏱️</span>
+                <p class="insight-label">Duración media</p>
+                <p class="insight-value">${i.avgMin}<small>min</small></p>
+                <p class="insight-meta">por sesión</p>
+            </div>
+            <div class="insight-card">
+                <span class="insight-icon">🔥</span>
+                <p class="insight-label">Constancia</p>
+                <p class="insight-value">${i.sessionsPerWeek.toFixed(1)}<small>/sem</small></p>
+                <p class="insight-meta">promedio</p>
+            </div>
+        `;
+    }
+
+    /**
+     * Group volume by muscle across sessions in the period.
+     */
+    function calcMuscleDistribution(sessions) {
+        const dist = new Map();
+        for (const s of sessions) {
+            for (const ex of s.exercises || []) {
+                const muscle = (ex.muscle || 'Sin clasificar').trim() || 'Sin clasificar';
+                let vol = 0;
+                for (const set of ex.sets || []) {
+                    if (set.completed && set.weight && set.reps) {
+                        vol += set.weight * set.reps;
+                    }
+                }
+                if (vol > 0) dist.set(muscle, (dist.get(muscle) || 0) + vol);
+            }
+        }
+        return [...dist.entries()]
+            .map(([name, value]) => ({ name, value }))
+            .sort((a, b) => b.value - a.value);
+    }
+
+    function renderMuscleDistribution(sessions) {
+        const container = document.getElementById('muscle-distribution');
+        if (!container) return;
+        const data = calcMuscleDistribution(sessions);
+        if (data.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:13px;padding:18px 0">Aún no tenemos datos suficientes para esta vista.</p>';
+            return;
+        }
+        const total = data.reduce((acc, d) => acc + d.value, 0);
+        const palette = ['#5EEAB0', '#B5A8FF', '#FFB088', '#7C5CFF', '#3DC894', '#FF8A66', '#8BF1C8', '#9BA1B0'];
+
+        // Build SVG donut
+        const cx = 70, cy = 70, r = 56, innerR = 36;
+        let cumulative = 0;
+        const slices = data.map((d, i) => {
+            const startPct = cumulative / total;
+            cumulative += d.value;
+            const endPct = cumulative / total;
+            const a1 = startPct * 2 * Math.PI - Math.PI / 2;
+            const a2 = endPct * 2 * Math.PI - Math.PI / 2;
+            const x1o = cx + r * Math.cos(a1);
+            const y1o = cy + r * Math.sin(a1);
+            const x2o = cx + r * Math.cos(a2);
+            const y2o = cy + r * Math.sin(a2);
+            const x1i = cx + innerR * Math.cos(a2);
+            const y1i = cy + innerR * Math.sin(a2);
+            const x2i = cx + innerR * Math.cos(a1);
+            const y2i = cy + innerR * Math.sin(a1);
+            const largeArc = (endPct - startPct) > 0.5 ? 1 : 0;
+            // Donut wedge path
+            return `<path d="M ${x1o} ${y1o} A ${r} ${r} 0 ${largeArc} 1 ${x2o} ${y2o} L ${x1i} ${y1i} A ${innerR} ${innerR} 0 ${largeArc} 0 ${x2i} ${y2i} Z" fill="${palette[i % palette.length]}"/>`;
+        }).join('');
+
+        const legend = data.map((d, i) => `
+            <li>
+                <span class="dot" style="background:${palette[i % palette.length]}"></span>
+                <span class="name">${escapeText(d.name)}</span>
+                <span class="pct">${Math.round((d.value / total) * 100)}%</span>
+            </li>
+        `).join('');
+
+        container.innerHTML = `
+            <div class="donut-grid">
+                <div class="donut-svg">
+                    <svg viewBox="0 0 140 140" xmlns="http://www.w3.org/2000/svg">
+                        ${slices}
+                        <text x="70" y="68" text-anchor="middle" font-family="Inter" font-size="9" font-weight="600" fill="var(--text-3)" letter-spacing="0.5">VOLUMEN</text>
+                        <text x="70" y="86" text-anchor="middle" font-family="Fraunces" font-size="16" font-weight="500" fill="var(--text-0)">${formatShortKg(total)}</text>
+                    </svg>
+                </div>
+                <ul class="donut-legend">${legend}</ul>
+            </div>
+        `;
+    }
+
+    function formatShortKg(v) {
+        if (v >= 100000) return Math.round(v / 1000) + 'k';
+        if (v >= 10000) return (v / 1000).toFixed(1) + 'k';
+        return Math.round(v).toLocaleString('es-ES');
+    }
+
+    /**
+     * Top exercises by total volume in the active period.
+     */
+    function calcTopExercises(sessions, limit = 5) {
+        const map = new Map();
+        for (const s of sessions) {
+            for (const ex of s.exercises || []) {
+                const key = ex.id || ex.name;
+                let vol = 0;
+                for (const set of ex.sets || []) {
+                    if (set.completed && set.weight && set.reps) {
+                        vol += set.weight * set.reps;
+                    }
+                }
+                const cur = map.get(key) || { name: ex.name, volume: 0, sets: 0 };
+                cur.volume += vol;
+                cur.sets += (ex.sets || []).filter(s => s.completed).length;
+                map.set(key, cur);
+            }
+        }
+        return [...map.values()]
+            .filter(e => e.volume > 0)
+            .sort((a, b) => b.volume - a.volume)
+            .slice(0, limit);
+    }
+
+    function renderTopExercises(sessions) {
+        const container = document.getElementById('top-exercises');
+        if (!container) return;
+        const top = calcTopExercises(sessions);
+        if (top.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:13px;padding:18px 0">Empieza a entrenar para ver tus ejercicios más cargados.</p>';
+            return;
+        }
+        const max = top[0].volume;
+        container.innerHTML = top.map((ex, i) => `
+            <div class="bar-row">
+                <div class="bar-label">
+                    <span class="bar-rank">${i + 1}</span>
+                    <span class="bar-name" title="${escapeText(ex.name)}">${escapeText(ex.name)}</span>
+                </div>
+                <div class="bar-track"><div class="bar-fill" style="width:${(ex.volume / max) * 100}%"></div></div>
+                <div class="bar-value">${formatShortKg(ex.volume)}<small>kg</small></div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Estimated 1RM via Epley: 1RM = w * (1 + reps/30).
+     * For each exercise, find the best (highest 1RM) completed set across all sessions.
+     */
+    function calc1RMs(allSessions, limit = 6) {
+        const best = new Map();
+        for (const s of allSessions) {
+            for (const ex of s.exercises || []) {
+                for (const set of ex.sets || []) {
+                    if (!set.completed || !set.weight || !set.reps) continue;
+                    if (set.reps > 12) continue; // formula loses accuracy beyond 12
+                    const oneRm = set.weight * (1 + set.reps / 30);
+                    const cur = best.get(ex.id);
+                    if (!cur || oneRm > cur.oneRm) {
+                        best.set(ex.id, {
+                            name: ex.name,
+                            oneRm,
+                            weight: set.weight,
+                            reps: set.reps
+                        });
+                    }
+                }
+            }
+        }
+        return [...best.values()]
+            .sort((a, b) => b.oneRm - a.oneRm)
+            .slice(0, limit);
+    }
+
+    function render1RMs(allSessions) {
+        const container = document.getElementById('dash-1rm');
+        if (!container) return;
+        const list = calc1RMs(allSessions);
+        if (list.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:13px;padding:14px 0">Tu 1RM estimado aparecerá cuando registres tus primeras series.</p>';
+            return;
+        }
+        container.innerHTML = list.map(item => `
+            <div class="onerm-item">
+                <span class="name">${escapeText(item.name)}</span>
+                <div style="text-align:right">
+                    <div class="value">${item.oneRm.toFixed(1)}<small>kg</small></div>
+                    <div class="source">desde ${item.weight} kg × ${item.reps}</div>
+                </div>
+            </div>
+        `).join('');
+    }
+
+    /**
+     * Build a chronological PR timeline by tracking the running max weight
+     * per exercise. Each "improvement" event is recorded with date and gain.
+     */
+    function calcPRTimeline(allSessions, limit = 12) {
+        const sortedAsc = [...allSessions].sort((a, b) => new Date(a.date) - new Date(b.date));
+        const seen = new Map(); // exerciseId -> currentMax weight
+        const events = [];
+        for (const s of sortedAsc) {
+            for (const ex of s.exercises || []) {
+                let setMax = 0;
+                let bestSet = null;
+                for (const set of ex.sets || []) {
+                    if (set.completed && set.weight > 0 && set.weight > setMax) {
+                        setMax = set.weight;
+                        bestSet = set;
+                    }
+                }
+                if (setMax === 0) continue;
+                const prev = seen.get(ex.id) || 0;
+                if (setMax > prev) {
+                    seen.set(ex.id, setMax);
+                    if (prev > 0) { // skip the first time (no prior to compare)
+                        events.push({
+                            date: s.date,
+                            name: ex.name,
+                            weight: setMax,
+                            reps: bestSet?.reps || 0,
+                            gain: +(setMax - prev).toFixed(1)
+                        });
+                    }
+                }
+            }
+        }
+        return events.reverse().slice(0, limit);
+    }
+
+    function renderPRTimeline(allSessions) {
+        const container = document.getElementById('pr-timeline');
+        if (!container) return;
+        const prs = calcPRTimeline(allSessions);
+        if (prs.length === 0) {
+            container.innerHTML = '<p style="text-align:center;color:var(--text-3);font-size:13px;padding:14px 0">Cuando superes un peso anterior, lo verás aquí. ¡A por el primero!</p>';
+            return;
+        }
+        const monthShort = ['ene','feb','mar','abr','may','jun','jul','ago','sep','oct','nov','dic'];
+        container.innerHTML = prs.map(pr => {
+            const dt = new Date(pr.date);
+            return `
+                <div class="pr-item">
+                    <div class="pr-item-date">${dt.getDate()}<small>${monthShort[dt.getMonth()]}</small></div>
+                    <div class="pr-item-info">
+                        <p class="pr-item-name">${escapeText(pr.name)}</p>
+                        <p class="pr-item-meta">${pr.weight} kg × ${pr.reps} reps · <span class="gain">+${pr.gain} kg</span></p>
+                    </div>
+                    <span class="pr-item-icon">🏆</span>
+                </div>
+            `;
+        }).join('');
     }
 
     function renderVolumeChart(sessions) {

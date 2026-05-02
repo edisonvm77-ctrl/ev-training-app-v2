@@ -221,6 +221,10 @@ const App = (() => {
         Storage.initialize();
         bindLogin();
         bindCloudIndicator();
+        bindPasswordRevealGlobally();
+        // Apply theme as early as possible to avoid flash. Default = auto.
+        // The user's saved preference is applied in showApp().
+        applyTheme(localStorage.getItem('evt:lastTheme') || 'auto');
         registerServiceWorker();
 
         // Try to bring up the cloud first (non-blocking after timeout).
@@ -267,6 +271,211 @@ const App = (() => {
      * works offline once cached. Silently fails on unsupported browsers
      * (older iOS, http://) — the app still runs perfectly without it.
      */
+    // ===== TRAINING CALENDAR =====
+    let _calOffset = 0; // months from current
+
+    function renderTrainingCalendar(userId) {
+        const container = $('#training-calendar');
+        if (!container) return;
+
+        const now = new Date();
+        const targetMonth = new Date(now.getFullYear(), now.getMonth() + _calOffset, 1);
+        const monthLabel = MONTH_NAMES[targetMonth.getMonth()] + ' ' + targetMonth.getFullYear();
+
+        // Group sessions for this month by day
+        const sessions = Storage.getUserSessions(userId);
+        const byDay = new Map();
+        for (const s of sessions) {
+            const d = new Date(s.date);
+            if (d.getMonth() !== targetMonth.getMonth() || d.getFullYear() !== targetMonth.getFullYear()) continue;
+            const day = d.getDate();
+            if (!byDay.has(day)) byDay.set(day, []);
+            byDay.get(day).push(s);
+        }
+
+        const firstWeekday = (targetMonth.getDay() + 6) % 7; // Mon = 0
+        const lastDay = new Date(targetMonth.getFullYear(), targetMonth.getMonth() + 1, 0).getDate();
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const cells = [];
+        // Empty leading cells
+        for (let i = 0; i < firstWeekday; i++) cells.push('<div class="cal-cell empty"></div>');
+
+        for (let day = 1; day <= lastDay; day++) {
+            const date = new Date(targetMonth.getFullYear(), targetMonth.getMonth(), day);
+            date.setHours(0, 0, 0, 0);
+            const list = byDay.get(day) || [];
+            const has = list.length > 0;
+            const isToday = date.getTime() === today.getTime();
+            const isFuture = date.getTime() > today.getTime();
+            const intensity = list.length >= 3 ? 3 : (list.length >= 2 ? 2 : 1);
+            const cls = ['cal-cell'];
+            if (has) {
+                cls.push('has-session');
+                if (intensity > 1) cls.push('intensity-' + intensity);
+                if (list.length > 1) cls.push('multi');
+            }
+            if (isToday) cls.push('today');
+            if (isFuture) cls.push('future');
+            const tag = has && !isFuture ? 'button' : 'div';
+            cells.push(`<${tag} class="${cls.join(' ')}" ${has && !isFuture ? `data-day="${day}"` : ''}>
+                <span class="cal-day">${day}</span>
+                ${has ? '<span class="cal-dot"></span>' : ''}
+            </${tag}>`);
+        }
+
+        // Disable forward nav if we're at current month or beyond
+        const isCurrentOrFuture = _calOffset >= 0;
+
+        container.innerHTML = `
+            <div class="cal-nav">
+                <button class="cal-nav-btn" data-cal-prev aria-label="Mes anterior">‹</button>
+                <span class="cal-title">${monthLabel}</span>
+                <button class="cal-nav-btn" data-cal-next aria-label="Mes siguiente" ${isCurrentOrFuture ? 'disabled' : ''}>›</button>
+            </div>
+            <div class="cal-weekdays">
+                <span>L</span><span>M</span><span>X</span><span>J</span><span>V</span><span>S</span><span>D</span>
+            </div>
+            <div class="cal-grid">${cells.join('')}</div>
+        `;
+
+        // Wire buttons
+        container.querySelector('[data-cal-prev]').onclick = () => {
+            _calOffset--;
+            renderTrainingCalendar(userId);
+        };
+        const nextBtn = container.querySelector('[data-cal-next]');
+        if (nextBtn && !nextBtn.disabled) {
+            nextBtn.onclick = () => {
+                _calOffset++;
+                renderTrainingCalendar(userId);
+            };
+        }
+        container.querySelectorAll('[data-day]').forEach(btn => {
+            btn.onclick = () => {
+                const day = parseInt(btn.dataset.day, 10);
+                showSessionsForDay(byDay.get(day) || [], targetMonth, day);
+            };
+        });
+    }
+
+    function showSessionsForDay(sessions, monthDate, day) {
+        if (sessions.length === 0) return;
+        const dt = new Date(monthDate.getFullYear(), monthDate.getMonth(), day);
+        const dateStr = dt.toLocaleDateString('es-ES', { weekday: 'long', day: 'numeric', month: 'long' });
+        const items = sessions.map((s, i) => `
+            <div class="cal-day-item" data-idx="${i}">
+                <p class="cal-day-item-name">${escapeHtml(s.routineName || 'Sesión')}</p>
+                <div class="cal-day-item-meta">
+                    <span><strong>${Math.round((s.durationSec || 0) / 60)}</strong> min</span>
+                    <span><strong>${Math.round(s.totals?.volume || 0)}</strong> kg</span>
+                    <span><strong>${s.totals?.reps || 0}</strong> reps</span>
+                    <span><strong>${s.totals?.sets || 0}</strong> series</span>
+                </div>
+            </div>
+        `).join('');
+        showModal(`
+            <h3 style="text-transform:capitalize">${escapeHtml(dateStr)}</h3>
+            <p style="color:var(--text-2);font-size:13px;margin:-10px 0 14px">${sessions.length} ${sessions.length === 1 ? 'sesión' : 'sesiones'}</p>
+            <div class="cal-day-list">${items}</div>
+        `);
+        document.querySelectorAll('.cal-day-item').forEach(el => {
+            el.onclick = () => {
+                const idx = parseInt(el.dataset.idx, 10);
+                closeModal();
+                setTimeout(() => showSessionDetails(sessions[idx]), 250);
+            };
+        });
+    }
+
+    // ===== THEME =====
+    let mqDark = null;
+
+    /**
+     * Apply a theme. 'auto' uses the OS preference and listens for changes.
+     * Updates the meta theme-color so the browser/PWA chrome matches.
+     */
+    function applyTheme(theme) {
+        const html = document.documentElement;
+        let resolved = theme;
+        if (theme === 'auto') {
+            // Listen for OS changes (only register the listener once)
+            if (!mqDark && window.matchMedia) {
+                mqDark = window.matchMedia('(prefers-color-scheme: dark)');
+                mqDark.addEventListener('change', () => {
+                    if ((Storage.getCurrentUser() && Storage.getUserSettings(Storage.getCurrentUser().id).theme) === 'auto') {
+                        applyTheme('auto');
+                    }
+                });
+            }
+            resolved = (mqDark && mqDark.matches === false) ? 'light' : 'dark';
+        }
+
+        if (resolved === 'light') {
+            html.dataset.theme = 'light';
+        } else {
+            delete html.dataset.theme;
+        }
+
+        // Update PWA theme-color
+        const meta = document.querySelector('meta[name="theme-color"]');
+        if (meta) meta.content = resolved === 'light' ? '#FAF6ED' : '#0E1620';
+
+        // Re-render charts with theme-aware colors if dashboard is visible
+        if (currentView === 'dashboard') {
+            const u = Storage.getCurrentUser();
+            if (u) Dashboard.render(u.id, ($('#dash-period') || {}).value || 'month');
+        }
+    }
+
+    function refreshThemeOptions() {
+        const user = Storage.getCurrentUser();
+        const current = (user && Storage.getUserSettings(user.id).theme) || 'auto';
+        document.querySelectorAll('.theme-option').forEach(b => {
+            b.classList.toggle('active', b.dataset.theme === current);
+        });
+    }
+
+    // ===== PASSWORD REVEAL =====
+    /**
+     * Globally delegate clicks on .pw-toggle so it works for both static
+     * and dynamically rendered (modal) password fields.
+     */
+    function bindPasswordRevealGlobally() {
+        document.addEventListener('click', e => {
+            const btn = e.target.closest('.pw-toggle');
+            if (!btn) return;
+            const input = btn.parentElement && btn.parentElement.querySelector('input');
+            if (!input) return;
+            const isPw = input.type === 'password';
+            input.type = isPw ? 'text' : 'password';
+            btn.classList.toggle('shown', isPw);
+            btn.setAttribute('aria-label', isPw ? 'Ocultar contraseña' : 'Mostrar contraseña');
+        });
+    }
+
+    /**
+     * Returns HTML for a password input wrapped in pw-field with reveal button.
+     * Use inside template strings for modals.
+     */
+    function passwordFieldHtml({ id, value = '', placeholder = '', autocomplete = 'new-password', minlength = 4, maxlength = 80, required = false }) {
+        return `
+            <div class="pw-field">
+                <input type="password" id="${escapeHtml(id)}" class="pw-input"
+                    value="${escapeHtml(value)}"
+                    placeholder="${escapeHtml(placeholder)}"
+                    autocomplete="${escapeHtml(autocomplete)}"
+                    minlength="${minlength}" maxlength="${maxlength}"
+                    ${required ? 'required' : ''}>
+                <button type="button" class="pw-toggle" aria-label="Mostrar contraseña" tabindex="-1">
+                    <svg class="pw-eye-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+                    <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none"><path d="M2 2l20 20M9.88 5.09A10.94 10.94 0 0112 5c6.5 0 10 7 10 7a17.85 17.85 0 01-3.06 3.95M6.61 6.61A18.51 18.51 0 002 12s3.5 7 10 7a10.92 10.92 0 005.39-1.39M14.12 14.12A3 3 0 119.88 9.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                </button>
+            </div>
+        `;
+    }
+
     function registerServiceWorker() {
         if (!('serviceWorker' in navigator)) return;
         // Avoid registration on file:// where SW is unsupported
@@ -323,9 +532,7 @@ const App = (() => {
     function showApp(user) {
         $('#app').classList.remove('hidden');
         // Avatars / names
-        const initial = (user.name || user.username)[0].toUpperCase();
-        $('#profile-initial').textContent = initial;
-        $('#menu-avatar').textContent = initial;
+        renderProfileAvatar(user);
         $('#hero-name').textContent = user.name || user.username;
         $('#menu-name').textContent = user.name || user.username;
         $('#menu-role').textContent = user.role === 'admin' ? 'Administrador' : 'Usuario';
@@ -338,6 +545,12 @@ const App = (() => {
         const us = Storage.getUserSettings(user.id);
         $('#setting-auto-rest').checked = !!us.autoRestTimer;
         $('#setting-sounds').checked = us.soundsEnabled !== false;
+
+        // Apply this user's theme preference and remember it for next boot
+        const theme = us.theme || 'auto';
+        applyTheme(theme);
+        try { localStorage.setItem('evt:lastTheme', theme); } catch (e) {}
+        refreshThemeOptions();
 
         // Show/hide admin items
         $$('.admin-only').forEach(el => {
@@ -409,6 +622,18 @@ const App = (() => {
             if (ex) startRestTimer(ex.rest, 'Descanso');
         };
 
+        // Theme picker
+        document.querySelectorAll('.theme-option').forEach(btn => {
+            btn.onclick = () => {
+                const theme = btn.dataset.theme;
+                applyTheme(theme);
+                try { localStorage.setItem('evt:lastTheme', theme); } catch (e) {}
+                const u = Storage.getCurrentUser();
+                if (u) Storage.saveUserSettings(u.id, { theme });
+                refreshThemeOptions();
+            };
+        });
+
         // Settings toggles
         $('#setting-auto-rest').onchange = e => {
             const u = Storage.getCurrentUser();
@@ -430,7 +655,10 @@ const App = (() => {
         };
 
         // Dashboard
-        $('#dash-period').onchange = () => Dashboard.render(Storage.getCurrentUser().id, $('#dash-period').value);
+        $('#dash-period').onchange = () => {
+            const u = Storage.getCurrentUser();
+            Dashboard.render(u.id, $('#dash-period').value);
+        };
         $('#dash-exercise').onchange = () => Dashboard.render(Storage.getCurrentUser().id, $('#dash-period').value);
 
         // Users (admin)
@@ -495,7 +723,11 @@ const App = (() => {
         $('#topbar-title').textContent = titles[view] || '';
 
         if (view === 'home') renderHome();
-        if (view === 'dashboard') Dashboard.render(Storage.getCurrentUser().id, $('#dash-period').value || 'month');
+        if (view === 'dashboard') {
+            const u = Storage.getCurrentUser();
+            Dashboard.render(u.id, $('#dash-period').value || 'month');
+            renderTrainingCalendar(u.id);
+        }
         if (view === 'history') renderHistory();
         if (view === 'users') renderUsers();
         if (view === 'body') renderBodyView();
@@ -1252,7 +1484,7 @@ const App = (() => {
             <form id="add-user-form" style="display:flex;flex-direction:column;gap:14px">
                 <div class="input-group"><label>Nombre completo</label><input type="text" id="nu-name" maxlength="60" required></div>
                 <div class="input-group"><label>Usuario (login)</label><input type="text" id="nu-username" maxlength="40" required pattern="[A-Za-z0-9_.\\-]+" title="Solo letras, números, guiones y puntos"></div>
-                <div class="input-group"><label>Contraseña</label><input type="password" id="nu-password" minlength="4" maxlength="80" required></div>
+                <div class="input-group"><label>Contraseña</label>${passwordFieldHtml({ id: 'nu-password', required: true })}</div>
                 <div class="input-group">
                     <label>Rol</label>
                     <div id="nu-role-mount"></div>
@@ -1403,7 +1635,7 @@ const App = (() => {
             <form id="edit-user-form" style="display:flex;flex-direction:column;gap:14px">
                 <div class="input-group"><label>Nombre</label><input type="text" id="eu-name" value="${escapeHtml(u.name || '')}" maxlength="60" required></div>
                 <div class="input-group"><label>Usuario</label><input type="text" id="eu-username" value="${escapeHtml(u.username || '')}" maxlength="40" required pattern="[A-Za-z0-9_.\\-]+"></div>
-                <div class="input-group"><label>Nueva contraseña (opcional)</label><input type="password" id="eu-password" placeholder="Dejar vacío para no cambiar" minlength="4" maxlength="80"></div>
+                <div class="input-group"><label>Nueva contraseña (opcional)</label>${passwordFieldHtml({ id: 'eu-password', placeholder: 'Dejar vacío para no cambiar' })}</div>
                 <div class="input-group">
                     <label>Rol</label>
                     <div id="eu-role-mount"></div>
@@ -1451,9 +1683,9 @@ const App = (() => {
         showModal(`
             <h3>Cambiar contraseña</h3>
             <form id="cp-form" style="display:flex;flex-direction:column;gap:14px">
-                <div class="input-group"><label>Contraseña actual</label><input type="password" id="cp-old" required></div>
-                <div class="input-group"><label>Nueva contraseña</label><input type="password" id="cp-new" required></div>
-                <div class="input-group"><label>Repite la nueva</label><input type="password" id="cp-new2" required></div>
+                <div class="input-group"><label>Contraseña actual</label>${passwordFieldHtml({ id: 'cp-old', autocomplete: 'current-password', required: true })}</div>
+                <div class="input-group"><label>Nueva contraseña</label>${passwordFieldHtml({ id: 'cp-new', autocomplete: 'new-password', required: true })}</div>
+                <div class="input-group"><label>Repite la nueva</label>${passwordFieldHtml({ id: 'cp-new2', autocomplete: 'new-password', required: true })}</div>
                 <div style="display:flex;gap:10px">
                     <button type="button" class="btn btn-ghost" style="flex:1" data-action="close-modal">Cancelar</button>
                     <button type="submit" class="btn btn-primary" style="flex:1">Cambiar</button>

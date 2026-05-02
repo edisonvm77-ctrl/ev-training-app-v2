@@ -12,19 +12,19 @@
   "categories": ["health", "fitness", "lifestyle"],
   "icons": [
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><defs><linearGradient id='g' x1='0' y1='0' x2='192' y2='192'><stop offset='0' stop-color='%235EEAB0'/><stop offset='1' stop-color='%23B5A8FF'/></linearGradient></defs><rect width='192' height='192' rx='44' fill='%230E1620'/><circle cx='96' cy='96' r='80' stroke='url(%23g)' stroke-width='6' opacity='0.35' fill='none'/><path d='M60 72 Q96 48 132 72 Q156 96 132 120 Q96 144 60 120 Q36 96 60 72 Z' fill='none' stroke='url(%23g)' stroke-width='8' stroke-linecap='round'/><circle cx='96' cy='96' r='10' fill='url(%23g)'/></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 192 192'><rect width='192' height='192' rx='42' fill='%230E1620'/><path d='M 70 92 Q 96 142 122 92' stroke='%235EEAB0' stroke-width='14' stroke-linecap='round' fill='none'/><g fill='%23F2EBDA'><rect x='48' y='68' width='9' height='48' rx='4' transform='rotate(-12 52.5 92)'/><rect x='64' y='74' width='9' height='38' rx='4' transform='rotate(-5 68.5 93)'/><rect x='79' y='84' width='7' height='22' rx='3'/><rect x='106' y='84' width='7' height='22' rx='3'/><rect x='119' y='74' width='9' height='38' rx='4' transform='rotate(5 123.5 93)'/><rect x='135' y='68' width='9' height='48' rx='4' transform='rotate(12 139.5 92)'/></g></svg>",
       "sizes": "192x192",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0' y1='0' x2='512' y2='512'><stop offset='0' stop-color='%235EEAB0'/><stop offset='1' stop-color='%23B5A8FF'/></linearGradient></defs><rect width='512' height='512' rx='112' fill='%230E1620'/><circle cx='256' cy='256' r='216' stroke='url(%23g)' stroke-width='14' opacity='0.35' fill='none'/><path d='M160 192 Q256 128 352 192 Q416 256 352 320 Q256 384 160 320 Q96 256 160 192 Z' fill='none' stroke='url(%23g)' stroke-width='20' stroke-linecap='round'/><circle cx='256' cy='256' r='28' fill='url(%23g)'/></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' rx='112' fill='%230E1620'/><path d='M 187 245 Q 256 379 325 245' stroke='%235EEAB0' stroke-width='38' stroke-linecap='round' fill='none'/><g fill='%23F2EBDA'><rect x='128' y='181' width='24' height='128' rx='10' transform='rotate(-12 140 245)'/><rect x='171' y='197' width='24' height='102' rx='10' transform='rotate(-5 183 248)'/><rect x='211' y='224' width='19' height='59' rx='8'/><rect x='282' y='224' width='19' height='59' rx='8'/><rect x='317' y='197' width='24' height='102' rx='10' transform='rotate(5 329 248)'/><rect x='360' y='181' width='24' height='128' rx='10' transform='rotate(12 372 245)'/></g></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "any"
     },
     {
-      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><defs><linearGradient id='g' x1='0' y1='0' x2='512' y2='512'><stop offset='0' stop-color='%235EEAB0'/><stop offset='1' stop-color='%23B5A8FF'/></linearGradient></defs><rect width='512' height='512' fill='%230E1620'/><path d='M160 192 Q256 128 352 192 Q416 256 352 320 Q256 384 160 320 Q96 256 160 192 Z' fill='none' stroke='url(%23g)' stroke-width='20' stroke-linecap='round'/><circle cx='256' cy='256' r='28' fill='url(%23g)'/></svg>",
+      "src": "data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect width='512' height='512' fill='%230E1620'/><g transform='translate(102 102) scale(0.6)'><path d='M 187 245 Q 256 379 325 245' stroke='%235EEAB0' stroke-width='38' stroke-linecap='round' fill='none'/><g fill='%23F2EBDA'><rect x='128' y='181' width='24' height='128' rx='10' transform='rotate(-12 140 245)'/><rect x='171' y='197' width='24' height='102' rx='10' transform='rotate(-5 183 248)'/><rect x='211' y='224' width='19' height='59' rx='8'/><rect x='282' y='224' width='19' height='59' rx='8'/><rect x='317' y='197' width='24' height='102' rx='10' transform='rotate(5 329 248)'/><rect x='360' y='181' width='24' height='128' rx='10' transform='rotate(12 372 245)'/></g></g></svg>",
       "sizes": "512x512",
       "type": "image/svg+xml",
       "purpose": "maskable"

@@ -7,7 +7,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes">
     <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
     <meta name="apple-mobile-web-app-title" content="EV Training">
-    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><defs><linearGradient id='g' x1='0' y1='0' x2='180' y2='180'><stop offset='0' stop-color='%235EEAB0'/><stop offset='1' stop-color='%23B5A8FF'/></linearGradient></defs><rect width='180' height='180' rx='40' fill='%230E1620'/><circle cx='90' cy='90' r='75' stroke='url(%23g)' stroke-width='5' opacity='0.35' fill='none'/><path d='M56 68 Q90 45 124 68 Q146 90 124 112 Q90 135 56 112 Q34 90 56 68 Z' fill='none' stroke='url(%23g)' stroke-width='7' stroke-linecap='round'/><circle cx='90' cy='90' r='10' fill='url(%23g)'/></svg>">
+    <link rel="apple-touch-icon" href="data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 180 180'><rect width='180' height='180' rx='40' fill='%230E1620'/><path d='M 65 86 Q 90 133 115 86' stroke='%235EEAB0' stroke-width='13' stroke-linecap='round' fill='none'/><g fill='%23F2EBDA'><rect x='44' y='64' width='8.5' height='45' rx='3.7' transform='rotate(-12 48.5 86)'/><rect x='59' y='69' width='8.5' height='35' rx='3.7' transform='rotate(-5 63 87)'/><rect x='73' y='79' width='6.5' height='20' rx='2.8'/><rect x='99' y='79' width='6.5' height='20' rx='2.8'/><rect x='112' y='69' width='8.5' height='35' rx='3.7' transform='rotate(5 116 87)'/><rect x='127' y='64' width='8.5' height='45' rx='3.7' transform='rotate(12 131 86)'/></g></svg>">
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' https://cdn.jsdelivr.net https://www.gstatic.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com data:; img-src 'self' data: blob: https://*.googleusercontent.com; connect-src 'self' https://*.firebaseio.com wss://*.firebaseio.com https://*.googleapis.com https://*.firebaseapp.com https://identitytoolkit.googleapis.com https://securetoken.googleapis.com; worker-src 'self'; object-src 'none'; base-uri 'self'; frame-ancestors 'none';">
     <meta http-equiv="X-Content-Type-Options" content="nosniff">
     <meta name="referrer" content="strict-origin-when-cross-origin">
@@ -23,16 +23,17 @@
     <div id="boot" class="boot">
         <div class="boot-inner">
             <div class="boot-logo">
-                <svg viewBox="0 0 64 64" fill="none">
-                    <circle cx="32" cy="32" r="28" stroke="url(#bootg)" stroke-width="2" opacity="0.3"/>
-                    <path d="M20 24 Q32 16 44 24 Q52 32 44 40 Q32 48 20 40 Q12 32 20 24 Z" fill="none" stroke="url(#bootg)" stroke-width="2.5" stroke-linecap="round"/>
-                    <circle cx="32" cy="32" r="3" fill="url(#bootg)"/>
-                    <defs>
-                        <linearGradient id="bootg" x1="0" y1="0" x2="64" y2="64">
-                            <stop offset="0" stop-color="#5EEAB0"/>
-                            <stop offset="1" stop-color="#B5A8FF"/>
-                        </linearGradient>
-                    </defs>
+                <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <rect width="64" height="64" rx="14" fill="#0E1620"/>
+                    <path d="M 23 30 Q 32 47 41 30" stroke="#5EEAB0" stroke-width="4.5" stroke-linecap="round" fill="none"/>
+                    <g fill="#F2EBDA">
+                        <rect x="15" y="22" width="3" height="16" rx="1.3" transform="rotate(-12 16.5 30)"/>
+                        <rect x="20.5" y="24" width="3" height="13" rx="1.3" transform="rotate(-5 22 30.5)"/>
+                        <rect x="26" y="27" width="2.4" height="7" rx="1"/>
+                        <rect x="35.6" y="27" width="2.4" height="7" rx="1"/>
+                        <rect x="40.5" y="24" width="3" height="13" rx="1.3" transform="rotate(5 42 30.5)"/>
+                        <rect x="46" y="22" width="3" height="16" rx="1.3" transform="rotate(12 47.5 30)"/>
+                    </g>
                 </svg>
             </div>
             <p class="boot-text">EV TRAINING</p>
@@ -71,7 +72,13 @@
                 </div>
                 <div class="input-group">
                     <label>Contraseña</label>
-                    <input type="password" id="login-password" autocomplete="current-password" required>
+                    <div class="pw-field">
+                        <input type="password" id="login-password" class="pw-input" autocomplete="current-password" required>
+                        <button type="button" class="pw-toggle" aria-label="Mostrar contraseña" tabindex="-1">
+                            <svg class="pw-eye-on" viewBox="0 0 24 24" fill="none"><path d="M2 12s3.5-7 10-7 10 7 10 7-3.5 7-10 7S2 12 2 12z" stroke="currentColor" stroke-width="2"/><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"/></svg>
+                            <svg class="pw-eye-off" viewBox="0 0 24 24" fill="none"><path d="M2 2l20 20M9.88 5.09A10.94 10.94 0 0112 5c6.5 0 10 7 10 7a17.85 17.85 0 01-3.06 3.95M6.61 6.61A18.51 18.51 0 002 12s3.5 7 10 7a10.92 10.92 0 005.39-1.39M14.12 14.12A3 3 0 119.88 9.88" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                        </button>
+                    </div>
                 </div>
                 <p id="login-error" class="form-error"></p>
                 <button type="submit" class="btn btn-primary btn-lg">
@@ -397,14 +404,33 @@
                 </div>
             </div>
 
+            <!-- Insights row: best day, avg duration, consistency -->
+            <div class="dash-insights" id="dash-insights"></div>
+
             <div class="card">
                 <h3>Volumen por sesión</h3>
                 <div class="chart-wrap"><canvas id="chart-volume"></canvas></div>
             </div>
 
             <div class="card">
-                <h3>Frecuencia semanal</h3>
-                <div class="chart-wrap"><canvas id="chart-frequency"></canvas></div>
+                <h3>Frecuencia · últimas 12 semanas</h3>
+                <div class="chart-wrap" style="height:auto"><canvas id="chart-frequency"></canvas></div>
+            </div>
+
+            <div class="card">
+                <h3>Calendario de entrenamientos</h3>
+                <p class="card-help">Mira los días que entrenaste y toca uno para ver el detalle.</p>
+                <div id="training-calendar" class="training-calendar"></div>
+            </div>
+
+            <div class="card">
+                <h3>Distribución por grupo muscular</h3>
+                <div id="muscle-distribution"></div>
+            </div>
+
+            <div class="card">
+                <h3>Top 5 ejercicios · por volumen</h3>
+                <div id="top-exercises" class="bars-list"></div>
             </div>
 
             <div class="card">
@@ -414,8 +440,19 @@
             </div>
 
             <div class="card">
-                <h3>Récords personales</h3>
+                <h3>1RM estimado · top ejercicios</h3>
+                <p class="card-help">Cálculo basado en la fórmula de Epley a partir de tus mejores series.</p>
+                <div id="dash-1rm" class="onerm-list"></div>
+            </div>
+
+            <div class="card">
+                <h3>Récords personales · top máximos</h3>
                 <div id="dash-records" class="records-list"></div>
+            </div>
+
+            <div class="card">
+                <h3>Tus últimos récords</h3>
+                <div id="pr-timeline" class="pr-timeline"></div>
             </div>
         </section>
 
@@ -503,6 +540,30 @@
             <h2 class="view-title">Ajustes</h2>
 
             <div class="card">
+                <h3>Apariencia</h3>
+                <div class="theme-picker" id="theme-picker">
+                    <button type="button" class="theme-option" data-theme="auto">
+                        <span class="theme-preview theme-preview-auto" aria-hidden="true">
+                            <span class="theme-preview-dark"></span>
+                            <span class="theme-preview-light"></span>
+                        </span>
+                        <span class="theme-option-label">Automático</span>
+                        <span class="theme-option-hint">Sigue tu sistema</span>
+                    </button>
+                    <button type="button" class="theme-option" data-theme="dark">
+                        <span class="theme-preview theme-preview-dark" aria-hidden="true"></span>
+                        <span class="theme-option-label">Oscuro</span>
+                        <span class="theme-option-hint">Cálido nocturno</span>
+                    </button>
+                    <button type="button" class="theme-option" data-theme="light">
+                        <span class="theme-preview theme-preview-light" aria-hidden="true"></span>
+                        <span class="theme-option-label">Claro</span>
+                        <span class="theme-option-hint">Crema diurno</span>
+                    </button>
+                </div>
+            </div>
+
+            <div class="card">
                 <h3>Preferencias de entrenamiento</h3>
                 <div class="setting-row-toggle">
                     <div class="info">
@@ -528,6 +589,19 @@
 
             <div class="card">
                 <h3>Mi cuenta</h3>
+                <div class="account-avatar-row">
+                    <button type="button" class="account-avatar" id="account-avatar-btn" aria-label="Cambiar foto de perfil">
+                        <span class="account-avatar-content" id="account-avatar-content">E</span>
+                        <span class="account-avatar-overlay">
+                            <svg viewBox="0 0 24 24" fill="none"><path d="M3 7h4l2-3h6l2 3h4v12H3V7z" stroke="currentColor" stroke-width="2" stroke-linejoin="round"/><circle cx="12" cy="13" r="4" stroke="currentColor" stroke-width="2"/></svg>
+                        </span>
+                    </button>
+                    <div class="account-avatar-info">
+                        <p>Foto de perfil</p>
+                        <small>Toca el círculo para añadir o cambiar tu foto</small>
+                    </div>
+                </div>
+                <input type="file" id="avatar-file-input" accept="image/*" hidden>
                 <div class="settings-row">
                     <span>Nombre</span>
                     <span id="set-name">-</span>
