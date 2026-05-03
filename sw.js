@@ -8,7 +8,7 @@
  * Bump CACHE_VERSION whenever you change the app shell to force a refresh.
  */
 
-const CACHE_VERSION = 'evt-shell-v4';
+const CACHE_VERSION = 'evt-shell-v5';
 const SHELL_FILES = [
     './',
     './index.html',

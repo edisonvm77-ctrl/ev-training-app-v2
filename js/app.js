@@ -271,6 +271,254 @@ const App = (() => {
      * works offline once cached. Silently fails on unsupported browsers
      * (older iOS, http://) — the app still runs perfectly without it.
      */
+    // ===== AVATAR (profile photo) =====
+
+    /**
+     * Renders the profile avatar in topbar, side menu and "Mi cuenta" card.
+     * If user has an avatar data URL, shows the image; otherwise the initial.
+     */
+    function renderProfileAvatar(user) {
+        if (!user) return;
+        const initial = ((user.name || user.username || '?')[0] || '?').toUpperCase();
+        const profileBtn = $('#profile-btn');
+        const profileInitial = $('#profile-initial');
+        const menuAvatar = $('#menu-avatar');
+        const accountContent = $('#account-avatar-content');
+
+        // Topbar
+        if (user.avatar) {
+            profileBtn.classList.add('has-avatar');
+            profileBtn.innerHTML = `<img src="${user.avatar}" alt="${escapeHtml(user.name || '')}">`;
+        } else {
+            profileBtn.classList.remove('has-avatar');
+            profileBtn.innerHTML = `<span id="profile-initial">${escapeHtml(initial)}</span>`;
+        }
+
+        // Side menu
+        if (menuAvatar) {
+            menuAvatar.innerHTML = user.avatar
+                ? `<img src="${user.avatar}" alt="${escapeHtml(user.name || '')}">`
+                : escapeHtml(initial);
+        }
+
+        // Account card (settings)
+        if (accountContent) {
+            accountContent.innerHTML = user.avatar
+                ? `<img src="${user.avatar}" alt="${escapeHtml(user.name || '')}">`
+                : escapeHtml(initial);
+        }
+    }
+
+    function bindAvatarUpload() {
+        const btn = $('#account-avatar-btn');
+        const input = $('#avatar-file-input');
+        if (!btn || !input) return;
+        btn.onclick = () => input.click();
+        input.onchange = e => {
+            const file = e.target.files?.[0];
+            if (!file) return;
+            if (!file.type.startsWith('image/')) {
+                toast('Archivo no válido — solo imágenes', 'error');
+                e.target.value = '';
+                return;
+            }
+            if (file.size > 8 * 1024 * 1024) {
+                toast('Imagen muy pesada (máx 8 MB)', 'error');
+                e.target.value = '';
+                return;
+            }
+            const reader = new FileReader();
+            reader.onload = ev => openAvatarCrop(ev.target.result);
+            reader.onerror = () => toast('No se pudo leer la imagen', 'error');
+            reader.readAsDataURL(file);
+            e.target.value = '';
+        };
+    }
+
+    /**
+     * Open the WhatsApp-style crop modal:
+     *  - Drag to pan
+     *  - Slider to zoom
+     *  - Pinch to zoom on touch
+     */
+    function openAvatarCrop(dataUrl) {
+        showModal(`
+            <h3>Ajustar foto</h3>
+            <p class="crop-help">Arrastra para reposicionar · usa el slider para hacer zoom</p>
+            <div class="crop-area" id="crop-area">
+                <img id="crop-img" class="crop-img" alt="">
+                <div class="crop-mask"></div>
+            </div>
+            <div class="crop-zoom-row">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4-4M8 11h6M11 8v6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+                <input type="range" id="crop-zoom" min="1" max="3" step="0.01" value="1" aria-label="Zoom">
+                <svg viewBox="0 0 24 24" fill="none"><circle cx="11" cy="11" r="8" stroke="currentColor" stroke-width="2"/><path d="M21 21l-4-4M8 11h6" stroke="currentColor" stroke-width="2" stroke-linecap="round"/></svg>
+            </div>
+            <div style="display:flex;gap:10px">
+                <button class="btn btn-ghost" style="flex:1" data-action="close-modal">Cancelar</button>
+                <button class="btn btn-primary" style="flex:1" id="crop-save-btn">Guardar foto</button>
+            </div>
+        `);
+
+        const img = document.getElementById('crop-img');
+        const area = document.getElementById('crop-area');
+        const zoomInput = document.getElementById('crop-zoom');
+        const cropSize = 280;
+        const state = { naturalW: 0, naturalH: 0, baseScale: 1, userScale: 1, offsetX: 0, offsetY: 0 };
+
+        img.onload = () => {
+            state.naturalW = img.naturalWidth;
+            state.naturalH = img.naturalHeight;
+            state.baseScale = Math.max(cropSize / state.naturalW, cropSize / state.naturalH);
+            state.userScale = 1;
+            state.offsetX = 0;
+            state.offsetY = 0;
+            applyCropTransform();
+            bindCropDragAndPinch(area, state, applyCropTransform, () => zoomInput.value);
+        };
+        img.src = dataUrl;
+
+        function applyCropTransform() {
+            const total = state.baseScale * state.userScale;
+            const w = state.naturalW * total;
+            const h = state.naturalH * total;
+            // Constrain so image always covers the crop area
+            const maxX = 0;
+            const minX = cropSize - w;
+            const maxY = 0;
+            const minY = cropSize - h;
+            // Center then apply offset
+            let left = (cropSize - w) / 2 + state.offsetX;
+            let top = (cropSize - h) / 2 + state.offsetY;
+            left = Math.min(maxX, Math.max(minX, left));
+            top = Math.min(maxY, Math.max(minY, top));
+            // Re-derive offset from constrained positions to avoid drift
+            state.offsetX = left - (cropSize - w) / 2;
+            state.offsetY = top - (cropSize - h) / 2;
+            img.style.width = w + 'px';
+            img.style.height = h + 'px';
+            img.style.left = left + 'px';
+            img.style.top = top + 'px';
+        }
+
+        zoomInput.addEventListener('input', e => {
+            state.userScale = parseFloat(e.target.value);
+            applyCropTransform();
+        });
+
+        document.getElementById('crop-save-btn').onclick = () => {
+            const dataOut = renderCropToCanvas(img, state, cropSize, 256);
+            const user = Storage.getCurrentUser();
+            if (!user) return;
+            user.avatar = dataOut;
+            Storage.upsertUser(user);
+            renderProfileAvatar(user);
+            closeModal();
+            toast('Foto actualizada ✓', 'success');
+        };
+    }
+
+    /**
+     * Drag (mouse/touch) + pinch-to-zoom on touch devices.
+     */
+    function bindCropDragAndPinch(area, state, apply, getZoom) {
+        let dragging = false;
+        let lastX = 0, lastY = 0;
+        let pinchStartDist = 0;
+        let pinchStartScale = 1;
+
+        function pos(e) {
+            if (e.touches && e.touches[0]) return { x: e.touches[0].clientX, y: e.touches[0].clientY };
+            return { x: e.clientX, y: e.clientY };
+        }
+        function dist(e) {
+            if (!e.touches || e.touches.length < 2) return 0;
+            const dx = e.touches[0].clientX - e.touches[1].clientX;
+            const dy = e.touches[0].clientY - e.touches[1].clientY;
+            return Math.hypot(dx, dy);
+        }
+
+        const start = e => {
+            if (e.touches && e.touches.length === 2) {
+                pinchStartDist = dist(e);
+                pinchStartScale = state.userScale;
+                dragging = false;
+                e.preventDefault();
+                return;
+            }
+            dragging = true;
+            const p = pos(e);
+            lastX = p.x;
+            lastY = p.y;
+            if (e.cancelable) e.preventDefault();
+        };
+        const move = e => {
+            if (e.touches && e.touches.length === 2 && pinchStartDist > 0) {
+                const ratio = dist(e) / pinchStartDist;
+                state.userScale = Math.max(1, Math.min(3, pinchStartScale * ratio));
+                const z = document.getElementById('crop-zoom');
+                if (z) z.value = state.userScale.toFixed(2);
+                apply();
+                e.preventDefault();
+                return;
+            }
+            if (!dragging) return;
+            const p = pos(e);
+            state.offsetX += (p.x - lastX);
+            state.offsetY += (p.y - lastY);
+            lastX = p.x;
+            lastY = p.y;
+            apply();
+            if (e.cancelable) e.preventDefault();
+        };
+        const end = () => {
+            dragging = false;
+            pinchStartDist = 0;
+        };
+
+        area.addEventListener('mousedown', start);
+        area.addEventListener('touchstart', start, { passive: false });
+        document.addEventListener('mousemove', move);
+        document.addEventListener('touchmove', move, { passive: false });
+        document.addEventListener('mouseup', end);
+        document.addEventListener('touchend', end);
+        document.addEventListener('touchcancel', end);
+    }
+
+    /**
+     * Render the visible crop region into a square canvas, clipped to a circle,
+     * and return a data URL. Output size kept small (256×256 PNG) to fit
+     * comfortably in localStorage and Firebase RTDB.
+     */
+    function renderCropToCanvas(img, state, cropSize, outSize) {
+        const left = parseFloat(img.style.left) || 0;
+        const top = parseFloat(img.style.top) || 0;
+        const renderedW = parseFloat(img.style.width);
+        const renderedH = parseFloat(img.style.height);
+        const sx = (img.naturalWidth || renderedW) / renderedW;
+        const sy = (img.naturalHeight || renderedH) / renderedH;
+        // Source rectangle on the natural image
+        const srcX = -left * sx;
+        const srcY = -top * sy;
+        const srcW = cropSize * sx;
+        const srcH = cropSize * sy;
+
+        const canvas = document.createElement('canvas');
+        canvas.width = outSize;
+        canvas.height = outSize;
+        const ctx = canvas.getContext('2d');
+        // Circular clip so the saved PNG has transparency outside the circle
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(outSize / 2, outSize / 2, outSize / 2, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+        ctx.drawImage(img, srcX, srcY, srcW, srcH, 0, 0, outSize, outSize);
+        ctx.restore();
+        // PNG keeps transparency. ~30-80KB typical for 256×256.
+        return canvas.toDataURL('image/png');
+    }
+
     // ===== TRAINING CALENDAR =====
     let _calOffset = 0; // months from current
 
@@ -671,6 +919,9 @@ const App = (() => {
         $('#import-json').onclick = () => $('#import-file').click();
         $('#import-file').onchange = handleImportJson;
         $('#reset-data').onclick = handleResetData;
+
+        // Avatar upload
+        bindAvatarUpload();
 
         // Body metrics
         const openBodyBtn = $('#open-body-btn');
@@ -1445,8 +1696,11 @@ const App = (() => {
             const div = document.createElement('div');
             div.className = 'user-item';
             const initial = ((u.name || u.username)[0] || '?').toUpperCase();
+            const avatarInner = u.avatar
+                ? `<img src="${escapeHtml(u.avatar)}" alt="${escapeHtml(u.name || '')}">`
+                : escapeHtml(initial);
             div.innerHTML = `
-                <div class="user-avatar">${escapeHtml(initial)}</div>
+                <div class="user-avatar">${avatarInner}</div>
                 <div class="user-info">
                     <p class="user-name">${escapeHtml(u.name || '')}</p>
                     <p class="user-username">@${escapeHtml(u.username || '')} · ${escapeHtml(u.role || '')}</p>
