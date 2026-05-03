@@ -14,7 +14,9 @@
       "Bash(grep -v \"= \\\\`\")",
       "Bash(node -c js/cloud.js)",
       "Bash(node -c js/select.js)",
-      "Bash(node -c sw.js)"
+      "Bash(node -c sw.js)",
+      "Bash(node -e \"JSON.parse\\(require\\('fs'\\).readFileSync\\('manifest.webmanifest', 'utf8'\\)\\)\")",
+      "Bash(node -e \"const m = JSON.parse\\(require\\('fs'\\).readFileSync\\('manifest.webmanifest', 'utf8'\\)\\); console.log\\('Valid manifest. Icons:', m.icons.length, '· display:', m.display, '· theme:', m.theme_color\\);\")"
     ]
   }
 }

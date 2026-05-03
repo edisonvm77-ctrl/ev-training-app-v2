@@ -348,15 +348,31 @@ input, select, textarea {
 }
 
 .input-group input,
-.input-group select {
+.input-group select,
+.input-group textarea {
     background: rgba(255, 255, 255, 0.04);
     border: 1px solid var(--border);
     color: var(--text-0);
     padding: 14px 16px;
     border-radius: var(--radius-sm);
-    font-size: 15px;
+    font-size: 16px; /* >=16px prevents iOS auto-zoom on focus */
     transition: all .2s ease;
     outline: none;
+    font-family: inherit;
+    width: 100%;
+    min-width: 0;
+}
+/* Hide native number input spinners (Chrome / Safari / Firefox).
+   They steal horizontal space and shift layout on mobile. */
+input[type="number"] {
+    -moz-appearance: textfield;
+    appearance: textfield;
+}
+input[type="number"]::-webkit-outer-spin-button,
+input[type="number"]::-webkit-inner-spin-button {
+    -webkit-appearance: none;
+    appearance: none;
+    margin: 0;
 }
 
 .input-group input:focus,
@@ -690,7 +706,7 @@ input, select, textarea {
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 16px;
+    padding: 14px 12px;
     margin-bottom: 12px;
 }
 .hist-ex h4 {
@@ -708,10 +724,10 @@ input, select, textarea {
 }
 .hist-set-row {
     display: grid;
-    grid-template-columns: 32px 1fr 1fr 40px;
-    gap: 10px;
+    grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 44px;
+    gap: 8px;
     align-items: center;
-    padding: 8px;
+    padding: 10px 10px;
     background: var(--surface);
     border-radius: var(--radius-sm);
     transition: background .15s var(--ease-out);
@@ -726,38 +742,44 @@ input, select, textarea {
 .hist-set-input {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 3px;
+    min-width: 0;
 }
 .hist-set-input label {
-    font-size: 9px;
+    font-size: 10px;
     color: var(--text-3);
     text-transform: uppercase;
-    letter-spacing: 0.4px;
+    letter-spacing: 0.5px;
     font-weight: 600;
+    padding-left: 2px;
 }
 .hist-set-input input {
     background: rgba(255, 255, 255, 0.05);
-    border: 1px solid transparent;
-    border-radius: 8px;
-    padding: 8px 10px;
+    border: 1.5px solid transparent;
+    border-radius: 9px;
+    padding: 9px 8px;
     color: var(--text-0);
     font-weight: 600;
-    font-size: 15px;
+    font-size: 16px; /* prevent iOS auto-zoom */
     text-align: center;
     font-family: 'Fraunces', serif;
+    letter-spacing: -0.01em;
     font-variant-numeric: tabular-nums;
     outline: none;
     transition: border-color .15s var(--ease-out), background .15s var(--ease-out);
     width: 100%;
+    min-width: 0;
+    min-height: 40px;
 }
 .hist-set-input input:focus {
     border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.08);
+    background: rgba(94, 234, 176, 0.08);
 }
+.hist-set-input input::placeholder { color: var(--text-3); font-weight: 400; opacity: 0.5; }
 .hist-set-check {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 40px;
+    height: 40px;
+    border-radius: 11px;
     background: rgba(255, 255, 255, 0.05);
     color: var(--text-3);
     display: inline-flex;
@@ -766,13 +788,16 @@ input, select, textarea {
     border: none;
     cursor: pointer;
     transition: all .25s var(--spring);
+    padding: 0;
+    flex-shrink: 0;
 }
-.hist-set-check:active { transform: scale(0.92); }
+.hist-set-check:active { transform: scale(0.9); }
 .hist-set-check.completed {
     background: var(--primary);
-    color: var(--bg-0);
+    color: var(--on-primary);
+    box-shadow: 0 0 0 4px rgba(94, 234, 176, 0.15);
 }
-.hist-set-check svg { width: 18px; height: 18px; }
+.hist-set-check svg { width: 20px; height: 20px; }
 .hist-actions {
     display: flex;
     gap: 10px;
@@ -2110,10 +2135,10 @@ html[data-theme="light"] .crop-mask {
     background: var(--bg-1);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    padding: 14px;
+    padding: 12px 14px;
     display: grid;
-    grid-template-columns: 36px 1fr 1fr 44px;
-    gap: 12px;
+    grid-template-columns: 32px minmax(0, 1fr) minmax(0, 1fr) 48px;
+    gap: 10px;
     align-items: center;
     transition: background .25s var(--ease-out), border-color .25s var(--ease-out), transform .35s var(--spring);
 }
@@ -2143,50 +2168,63 @@ html[data-theme="light"] .crop-mask {
 .set-input-group {
     display: flex;
     flex-direction: column;
-    gap: 2px;
+    gap: 4px;
+    min-width: 0;
 }
 .set-input-group label {
     font-size: 10px;
     color: var(--text-3);
     text-transform: uppercase;
-    letter-spacing: 0.5px;
-    font-weight: 500;
+    letter-spacing: 0.6px;
+    font-weight: 600;
+    padding-left: 2px;
 }
 .set-input {
     background: rgba(255, 255, 255, 0.06);
-    border: 1px solid transparent;
-    border-radius: 8px;
-    padding: 8px 10px;
+    border: 1.5px solid transparent;
+    border-radius: 10px;
+    padding: 10px 8px;
     color: var(--text-0);
     font-weight: 600;
-    font-size: 16px;
+    font-size: 16px; /* >=16px so iOS doesn't zoom */
     width: 100%;
+    min-width: 0;
     text-align: center;
     font-variant-numeric: tabular-nums;
-    transition: all .15s ease;
+    transition: border-color .15s var(--ease-out), background .15s var(--ease-out);
     outline: none;
+    font-family: 'Fraunces', serif;
+    letter-spacing: -0.01em;
+    /* iOS Safari sometimes shrinks number inputs — force consistent height */
+    min-height: 42px;
 }
 .set-input:focus {
     border-color: var(--primary);
-    background: rgba(255, 255, 255, 0.1);
+    background: rgba(94, 234, 176, 0.08);
 }
-.set-input::placeholder { color: var(--text-3); }
+.set-input::placeholder { color: var(--text-3); font-weight: 400; opacity: 0.55; }
 
 .set-check {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
+    width: 44px;
+    height: 44px;
+    border-radius: 12px;
     background: rgba(255, 255, 255, 0.06);
+    border: 1.5px solid transparent;
     color: var(--text-2);
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    transition: all .2s ease;
+    transition: all .2s var(--spring);
+    cursor: pointer;
+    flex-shrink: 0;
+    padding: 0;
 }
-.set-check svg { width: 18px; height: 18px; }
+.set-check:active { transform: scale(0.9); }
+.set-check svg { width: 22px; height: 22px; }
 .set-row.completed .set-check {
-    background: var(--success);
-    color: white;
+    background: var(--primary);
+    color: var(--on-primary);
+    box-shadow: 0 0 0 4px rgba(94, 234, 176, 0.18);
 }
 
 .set-suggestion {
@@ -3709,4 +3747,37 @@ html[data-theme="light"] .crop-mask {
     .view { padding: 24px; max-width: 800px; margin: 0 auto; }
     .workout-body { max-width: 720px; margin: 0 auto; }
     .topbar { padding-left: 24px; padding-right: 24px; }
+}
+
+/* ========================================
+   SMALL PHONES (≤ 380px wide)
+   Make set rows breathable on iPhone SE-class screens
+   ======================================== */
+@media (max-width: 380px) {
+    .modal-content { padding: 22px 14px calc(22px + var(--safe-bottom)); }
+    .view { padding: 14px; }
+    .hist-ex { padding: 12px 10px; }
+    .hist-set-row { grid-template-columns: 24px minmax(0, 1fr) minmax(0, 1fr) 40px; gap: 6px; padding: 8px; }
+    .hist-set-input input { padding: 9px 6px; }
+    .set-row { padding: 10px 12px; gap: 8px; grid-template-columns: 28px minmax(0, 1fr) minmax(0, 1fr) 44px; }
+    .set-input { padding: 10px 6px; }
+    .exercise-card { padding: 18px 16px; }
+    .exercise-name { font-size: 24px; }
+    .card { padding: 18px 16px; }
+    .preview-item { padding: 12px; }
+    .stat-card { padding: 14px 10px; }
+    .stat-value { font-size: 24px; }
+    .stat-label { font-size: 10px; }
+    .insight-card { padding: 12px 8px; }
+    .insight-value { font-size: 20px; }
+    .bar-row { grid-template-columns: 84px 1fr auto; gap: 8px; }
+    .bar-name { font-size: 12px; }
+    .donut-grid { gap: 14px; }
+    .donut-svg { width: 120px; height: 120px; }
+    .cal-cell { font-size: 13px; }
+    .pr-item { grid-template-columns: 48px 1fr auto; gap: 10px; padding: 11px 12px; }
+    .readiness-card { padding: 18px; gap: 14px; }
+    .readiness-ring-wrap { width: 84px; height: 84px; }
+    .readiness-status { font-size: 22px; }
+    .topbar { padding-left: 14px; padding-right: 14px; }
 }

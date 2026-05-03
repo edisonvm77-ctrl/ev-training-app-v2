@@ -222,9 +222,9 @@ const App = (() => {
         bindLogin();
         bindCloudIndicator();
         bindPasswordRevealGlobally();
-        // Apply theme as early as possible to avoid flash. Default = auto.
-        // The user's saved preference is applied in showApp().
-        applyTheme(localStorage.getItem('evt:lastTheme') || 'auto');
+        // Apply theme as early as possible to avoid flash. Default = dark.
+        // The user's saved preference (if any) is applied later in showApp().
+        applyTheme(localStorage.getItem('evt:lastTheme') || 'dark');
         registerServiceWorker();
 
         // Try to bring up the cloud first (non-blocking after timeout).
@@ -679,7 +679,7 @@ const App = (() => {
 
     function refreshThemeOptions() {
         const user = Storage.getCurrentUser();
-        const current = (user && Storage.getUserSettings(user.id).theme) || 'auto';
+        const current = (user && Storage.getUserSettings(user.id).theme) || 'dark';
         document.querySelectorAll('.theme-option').forEach(b => {
             b.classList.toggle('active', b.dataset.theme === current);
         });
@@ -794,8 +794,9 @@ const App = (() => {
         $('#setting-auto-rest').checked = !!us.autoRestTimer;
         $('#setting-sounds').checked = us.soundsEnabled !== false;
 
-        // Apply this user's theme preference and remember it for next boot
-        const theme = us.theme || 'auto';
+        // Apply this user's theme preference and remember it for next boot.
+        // New users default to dark mode (most ergonomic at the gym).
+        const theme = us.theme || 'dark';
         applyTheme(theme);
         try { localStorage.setItem('evt:lastTheme', theme); } catch (e) {}
         refreshThemeOptions();
