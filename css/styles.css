@@ -72,66 +72,7 @@
     color-scheme: dark;
 }
 
-/* =========================================
-   LIGHT THEME — warm cream palette
-   Activated when html has data-theme="light"
-   ========================================= */
-html[data-theme="light"] {
-    --bg-0: #FAF6ED;            /* warm cream */
-    --bg-1: #FFFFFF;            /* white surfaces */
-    --bg-2: #FFFFFF;
-    --bg-3: #F0EBE0;
-    --surface: rgba(31, 27, 22, 0.03);
-    --surface-2: rgba(31, 27, 22, 0.055);
-    --border: rgba(31, 27, 22, 0.07);
-    --border-strong: rgba(31, 27, 22, 0.14);
-
-    --text-0: #1F1B16;          /* warm charcoal */
-    --text-1: #3A342B;
-    --text-2: #6B6256;
-    --text-3: #9B9385;
-
-    /* Semantics tweaked for contrast on light */
-    --primary: #2D9F73;          /* darker mint (4:1 with white text would still fail; keep dark text) */
-    --primary-2: #5EEAB0;
-    --primary-deep: #1C7A55;
-    --secondary: #6B5BD0;
-    --warning: #E08B5C;
-    --warning-deep: #C66E3F;
-    --danger: #C4596B;
-    --info: #6B5BD0;
-    --success: #2D9F73;
-
-    --gradient-primary: linear-gradient(135deg, #5EEAB0 0%, #B5A8FF 100%);
-    --gradient-success: linear-gradient(135deg, #5EEAB0 0%, #2D9F73 100%);
-    --gradient-warm: linear-gradient(135deg, #FFB088 0%, #5EEAB0 100%);
-    --gradient-mesh: radial-gradient(circle at 20% 20%, rgba(94,234,176,0.18), transparent 50%),
-                     radial-gradient(circle at 80% 80%, rgba(181,168,255,0.15), transparent 50%);
-
-    --shadow-sm: 0 1px 2px rgba(31, 27, 22, 0.04), 0 2px 6px rgba(31, 27, 22, 0.05);
-    --shadow-md: 0 2px 4px rgba(31, 27, 22, 0.06), 0 8px 24px rgba(31, 27, 22, 0.08);
-    --shadow-lg: 0 4px 8px rgba(31, 27, 22, 0.08), 0 18px 48px rgba(31, 27, 22, 0.12);
-    --shadow-glow: 0 4px 18px rgba(45, 159, 115, 0.22);
-    --shadow-glow-lavender: 0 4px 18px rgba(107, 91, 208, 0.22);
-
-    --topbar-bg: rgba(250, 246, 237, 0.85);
-    --workout-bar-bg: rgba(250, 246, 237, 0.92);
-    --nav-bg: rgba(255, 255, 255, 0.85);
-    --rest-bg: rgba(250, 246, 237, 0.97);
-    --tooltip-bg: #FFFFFF;
-    --on-primary: #0E1620;       /* dark text stays on mint primary in both themes */
-
-    color-scheme: light;
-}
-
-/* Smooth theme transition */
-html, body, .card, .stat-card, .routine-card, .history-card,
-.dash-stat-card, .exercise-card, .last-session, .body-entry,
-.set-row, .check-row, .cs-trigger, .cs-menu, .cs-option,
-.preview-item, .swap-item, .rest-card, .input-group input,
-.input-group select, .topbar, .workout-bar, .bottom-nav, .modal-content {
-    transition: background-color .35s var(--ease-out, ease), color .35s var(--ease-out, ease), border-color .35s var(--ease-out, ease), box-shadow .35s var(--ease-out, ease);
-}
+/* App is dark-mode-only by design (gym setting, neon-on-navy aesthetic). */
 
 * {
     box-sizing: border-box;
@@ -141,8 +82,16 @@ html, body, .card, .stat-card, .routine-card, .history-card,
 html, body {
     margin: 0;
     padding: 0;
-    height: 100%;
+    min-height: 100%;
     overflow-x: hidden;
+}
+html {
+    /* iOS dynamic island safe area + Liquid-Glass-friendly base */
+    background: var(--bg-0);
+    /* Smoother momentum scroll */
+    -webkit-overflow-scrolling: touch;
+    /* Disable iOS pull-to-refresh bounce that interferes with custom UI */
+    overscroll-behavior-y: none;
 }
 
 body {
@@ -154,6 +103,8 @@ body {
     -webkit-font-smoothing: antialiased;
     -moz-osx-font-smoothing: grayscale;
     overscroll-behavior: none;
+    /* Paint navy under the iOS dynamic island / notch area */
+    padding-top: 0;
     /* subtle warm grain in the background to humanize the dark */
     background-image:
         radial-gradient(circle at 12% 8%, rgba(94, 234, 176, 0.04), transparent 35%),
@@ -198,27 +149,82 @@ input, select, textarea {
     align-items: center;
     justify-content: center;
     z-index: 9999;
-    transition: opacity .4s ease, background-color .35s var(--ease-out);
+    overflow: hidden;
+    transition: opacity .55s var(--ease-out), background-color .35s var(--ease-out);
 }
 .boot.fade-out { opacity: 0; pointer-events: none; }
-.boot-inner { text-align: center; animation: bootPulse 1.4s ease-in-out infinite; }
-.boot-logo svg { width: 64px; height: 64px; }
+
+/* Vertical "ribbons" pass through, Platzi-style */
+.boot-stripes {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    z-index: 1;
+    pointer-events: none;
+}
+.boot-stripe {
+    flex: 1;
+    height: 100%;
+    transform: translateY(-100%);
+    will-change: transform;
+    animation: stripe-pass 1.6s var(--ease-out) forwards;
+}
+.boot-stripe:nth-child(1) { background: rgba(94, 234, 176, 0.55); animation-delay: 0s; }
+.boot-stripe:nth-child(2) { background: rgba(255, 176, 136, 0.45); animation-delay: 0.06s; }
+.boot-stripe:nth-child(3) { background: rgba(181, 168, 255, 0.5); animation-delay: 0.12s; }
+.boot-stripe:nth-child(4) { background: rgba(94, 234, 176, 0.7); animation-delay: 0.18s; }
+.boot-stripe:nth-child(5) { background: rgba(94, 234, 176, 0.6); animation-delay: 0.24s; }
+.boot-stripe:nth-child(6) { background: rgba(181, 168, 255, 0.55); animation-delay: 0.30s; }
+.boot-stripe:nth-child(7) { background: rgba(255, 176, 136, 0.5); animation-delay: 0.36s; }
+.boot-stripe:nth-child(8) { background: rgba(94, 234, 176, 0.55); animation-delay: 0.42s; }
+@keyframes stripe-pass {
+    0% { transform: translateY(-100%); }
+    45% { transform: translateY(0); }
+    100% { transform: translateY(105%); }
+}
+
+.boot-inner {
+    position: relative;
+    z-index: 2;
+    text-align: center;
+    animation: boot-content-in .8s var(--spring) .6s backwards;
+}
+@keyframes boot-content-in {
+    0% { opacity: 0; transform: scale(0.7) translateY(12px); }
+    60% { opacity: 1; transform: scale(1.06) translateY(0); }
+    100% { opacity: 1; transform: scale(1) translateY(0); }
+}
+.boot-logo svg {
+    width: 96px;
+    height: 96px;
+    filter: drop-shadow(0 12px 36px rgba(94, 234, 176, 0.3));
+}
 .boot-text {
-    font-family: 'Space Grotesk', sans-serif;
-    font-weight: 700;
-    letter-spacing: 4px;
-    margin-top: 16px;
-    font-size: 12px;
-    color: var(--text-2);
+    font-family: 'Fraunces', serif;
+    font-weight: 500;
+    letter-spacing: -0.01em;
+    margin: 18px 0 0;
+    font-size: 26px;
+    color: var(--text-0);
+}
+.boot-text em {
+    font-style: italic;
+    color: var(--primary);
+    font-weight: 500;
 }
 .boot-cloud {
     display: inline-flex;
     align-items: center;
-    gap: 6px;
+    gap: 7px;
     font-size: 11px;
     color: var(--text-3);
-    margin-top: 10px;
+    margin-top: 14px;
     font-weight: 500;
+    animation: boot-cloud-fade .5s ease-out 1.6s backwards;
+}
+@keyframes boot-cloud-fade {
+    from { opacity: 0; }
+    to { opacity: 1; }
 }
 .cloud-dot {
     width: 8px;
@@ -228,15 +234,11 @@ input, select, textarea {
     transition: background .3s ease;
 }
 .cloud-dot.connecting { background: var(--warning); animation: cloudPulse 1.2s ease-in-out infinite; }
-.cloud-dot.connected { background: var(--primary); box-shadow: 0 0 8px rgba(0, 255, 148, 0.6); }
+.cloud-dot.connected { background: var(--primary); box-shadow: 0 0 8px rgba(94, 234, 176, 0.6); }
 .cloud-dot.unavailable, .cloud-dot.error { background: var(--text-3); }
 @keyframes cloudPulse {
     0%, 100% { opacity: 0.5; }
     50% { opacity: 1; }
-}
-@keyframes bootPulse {
-    0%, 100% { transform: scale(1); opacity: .9; }
-    50% { transform: scale(1.05); opacity: 1; }
 }
 
 /* =========================================
@@ -500,15 +502,17 @@ input[type="number"]::-webkit-inner-spin-button {
    ========================================= */
 .app {
     min-height: 100vh;
-    padding-bottom: calc(80px + var(--safe-bottom));
+    /* Floating bottom nav is ~64px tall + 12px outer margin + safe area.
+       Add some breathing room so the last item is never under the nav. */
+    padding-bottom: calc(96px + var(--safe-bottom));
 }
 
 .topbar {
     position: sticky;
     top: 0;
     background: var(--topbar-bg);
-    backdrop-filter: blur(24px) saturate(180%);
-    -webkit-backdrop-filter: blur(24px) saturate(180%);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
     z-index: 50;
     padding: calc(var(--safe-top) + 12px) 18px 12px;
     display: grid;
@@ -516,6 +520,13 @@ input[type="number"]::-webkit-inner-spin-button {
     align-items: center;
     gap: 12px;
     border-bottom: 1px solid var(--border);
+    transition: transform .35s var(--ease-out), opacity .25s var(--ease-out);
+    will-change: transform;
+}
+.topbar.bar-hidden {
+    transform: translateY(calc(-100% - var(--safe-top)));
+    opacity: 0;
+    pointer-events: none;
 }
 
 .topbar-title {
@@ -932,11 +943,6 @@ input[type="number"]::-webkit-inner-spin-button {
     pointer-events: none;
 }
 
-/* Light theme: lighter mask overlay */
-html[data-theme="light"] .crop-mask {
-    box-shadow: inset 0 0 0 1000px rgba(31, 27, 22, 0.45);
-}
-
 .crop-zoom-row {
     display: flex;
     align-items: center;
@@ -981,94 +987,6 @@ html[data-theme="light"] .crop-mask {
     margin: 0 0 14px;
     font-style: italic;
 }
-
-/* ========================================
-   THEME PICKER (settings)
-   ======================================== */
-.theme-picker {
-    display: grid;
-    grid-template-columns: repeat(3, 1fr);
-    gap: 10px;
-}
-.theme-option {
-    background: var(--surface);
-    border: 1.5px solid var(--border);
-    border-radius: var(--radius-md);
-    padding: 14px 10px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 8px;
-    cursor: pointer;
-    transition: all .2s var(--ease-out);
-    color: var(--text-1);
-}
-.theme-option:hover {
-    background: var(--surface-2);
-    border-color: var(--border-strong);
-    transform: translateY(-1px);
-}
-.theme-option.active {
-    border-color: var(--primary);
-    background: rgba(94, 234, 176, 0.08);
-    box-shadow: var(--shadow-glow);
-}
-.theme-option-label {
-    font-weight: 600;
-    font-size: 13px;
-    color: var(--text-0);
-}
-.theme-option-hint {
-    font-size: 11px;
-    color: var(--text-3);
-}
-.theme-preview {
-    width: 56px;
-    height: 36px;
-    border-radius: 10px;
-    border: 1.5px solid var(--border-strong);
-    display: block;
-    overflow: hidden;
-    position: relative;
-}
-.theme-preview-dark {
-    background: linear-gradient(135deg, #0E1620 0%, #1A2530 100%);
-}
-.theme-preview-dark::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    width: 16px;
-    height: 4px;
-    background: #5EEAB0;
-    border-radius: 999px;
-}
-.theme-preview-light {
-    background: linear-gradient(135deg, #FAF6ED 0%, #FFFFFF 100%);
-}
-.theme-preview-light::after {
-    content: '';
-    position: absolute;
-    bottom: 4px;
-    left: 4px;
-    width: 16px;
-    height: 4px;
-    background: #2D9F73;
-    border-radius: 999px;
-}
-.theme-preview-auto {
-    display: flex;
-    padding: 0;
-}
-.theme-preview-auto > span {
-    flex: 1;
-    display: block;
-    border-radius: 0;
-    border: none;
-}
-.theme-preview-auto .theme-preview-dark { border-radius: 8px 0 0 8px; }
-.theme-preview-auto .theme-preview-light { border-radius: 0 8px 8px 0; }
 
 /* ========================================
    PASSWORD FIELD with reveal toggle
@@ -1612,11 +1530,37 @@ html[data-theme="light"] .crop-mask {
 .preview-item-meta span { padding: 2px 6px; background: rgba(255,255,255,0.04); border-radius: 4px; }
 
 .preview-actions {
-    position: sticky;
-    bottom: calc(80px + var(--safe-bottom));
-    margin-top: 24px;
-    padding: 12px 0;
-    background: linear-gradient(to top, var(--bg-0) 60%, transparent);
+    /* Fixed at bottom so it never collides with list items.
+       Sits ABOVE where the floating bottom-nav would be (since the nav is
+       hidden on the preview view, we just need to clear safe-area). */
+    position: fixed;
+    bottom: calc(16px + var(--safe-bottom));
+    left: 16px;
+    right: 16px;
+    z-index: 25;
+    padding: 0;
+    pointer-events: none; /* let the gradient backdrop ignore taps */
+    max-width: 720px;
+    margin: 0 auto;
+}
+.preview-actions::before {
+    /* Soft fade so list items behind feel like they "dissolve" */
+    content: '';
+    position: absolute;
+    left: -16px;
+    right: -16px;
+    bottom: 0;
+    top: -28px;
+    background: linear-gradient(to top, var(--bg-0) 30%, transparent);
+    pointer-events: none;
+    z-index: -1;
+}
+.preview-actions .btn { pointer-events: auto; }
+
+#view-preview {
+    /* Reserve space at the bottom so the fixed start button never covers
+       the last exercise card. 96px button + 16px gap + safe area. */
+    padding-bottom: calc(120px + var(--safe-bottom));
 }
 
 /* =========================================
@@ -2244,9 +2188,10 @@ html[data-theme="light"] .crop-mask {
     display: grid;
     grid-template-columns: 1fr 2fr;
     gap: 10px;
-    padding: 12px 16px calc(12px + var(--safe-bottom));
-    background: linear-gradient(to top, rgba(6, 8, 15, 0.95) 50%, rgba(6, 8, 15, 0.7));
-    backdrop-filter: blur(12px);
+    padding: 14px 16px calc(14px + var(--safe-bottom));
+    background: linear-gradient(to top, var(--bg-0) 60%, rgba(14, 22, 32, 0.7) 100%);
+    backdrop-filter: blur(20px) saturate(180%);
+    -webkit-backdrop-filter: blur(20px) saturate(180%);
     border-top: 1px solid var(--border);
 }
 
@@ -3532,14 +3477,22 @@ html[data-theme="light"] .crop-mask {
     display: grid;
     grid-template-columns: repeat(4, 1fr);
     background: var(--nav-bg);
-    backdrop-filter: blur(28px) saturate(180%);
-    -webkit-backdrop-filter: blur(28px) saturate(180%);
-    border: 1px solid var(--border);
+    backdrop-filter: blur(32px) saturate(200%);
+    -webkit-backdrop-filter: blur(32px) saturate(200%);
+    border: 1px solid var(--border-strong);
     border-radius: var(--radius-pill);
     padding: 8px;
     box-shadow: var(--shadow-md);
     max-width: 480px;
     margin: 0 auto;
+    transition: transform .35s var(--ease-out), opacity .25s var(--ease-out);
+    will-change: transform;
+}
+/* Hidden when user scrolls down (Platzi/Twitter-style) */
+.bottom-nav.nav-hidden {
+    transform: translateY(calc(100% + 28px + var(--safe-bottom)));
+    opacity: 0;
+    pointer-events: none;
 }
 
 .nav-item {

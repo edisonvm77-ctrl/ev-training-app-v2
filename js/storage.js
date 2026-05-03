@@ -190,8 +190,7 @@ const Storage = (() => {
     // ===== USER SETTINGS (per-user prefs) =====
     const DEFAULT_USER_SETTINGS = {
         autoRestTimer: false,    // user wants auto rest timer after each set?
-        soundsEnabled: true,
-        theme: 'dark'            // default appearance
+        soundsEnabled: true
     };
     function getUserSettings(userId) {
         const all = read(KEYS.USER_SETTINGS, {});

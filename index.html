@@ -25,8 +25,18 @@
     <link rel="manifest" href="manifest.webmanifest">
 </head>
 <body>
-    <!-- LOADING -->
+    <!-- LOADING — Platzi-style stripes + logo reveal -->
     <div id="boot" class="boot">
+        <div class="boot-stripes" aria-hidden="true">
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+            <span class="boot-stripe"></span>
+        </div>
         <div class="boot-inner">
             <div class="boot-logo">
                 <svg viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
@@ -42,7 +52,7 @@
                     </g>
                 </svg>
             </div>
-            <p class="boot-text">EV TRAINING</p>
+            <p class="boot-text">EV <em>Training</em></p>
             <p class="boot-cloud"><span id="cloud-dot" class="cloud-dot"></span><span id="cloud-label">Conectando...</span></p>
         </div>
     </div>
@@ -544,30 +554,6 @@
                 <span>Volver</span>
             </button>
             <h2 class="view-title">Ajustes</h2>
-
-            <div class="card">
-                <h3>Apariencia</h3>
-                <div class="theme-picker" id="theme-picker">
-                    <button type="button" class="theme-option" data-theme="auto">
-                        <span class="theme-preview theme-preview-auto" aria-hidden="true">
-                            <span class="theme-preview-dark"></span>
-                            <span class="theme-preview-light"></span>
-                        </span>
-                        <span class="theme-option-label">Automático</span>
-                        <span class="theme-option-hint">Sigue tu sistema</span>
-                    </button>
-                    <button type="button" class="theme-option" data-theme="dark">
-                        <span class="theme-preview theme-preview-dark" aria-hidden="true"></span>
-                        <span class="theme-option-label">Oscuro</span>
-                        <span class="theme-option-hint">Cálido nocturno</span>
-                    </button>
-                    <button type="button" class="theme-option" data-theme="light">
-                        <span class="theme-preview theme-preview-light" aria-hidden="true"></span>
-                        <span class="theme-option-label">Claro</span>
-                        <span class="theme-option-hint">Crema diurno</span>
-                    </button>
-                </div>
-            </div>
 
             <div class="card">
                 <h3>Preferencias de entrenamiento</h3>

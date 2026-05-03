@@ -222,9 +222,9 @@ const App = (() => {
         bindLogin();
         bindCloudIndicator();
         bindPasswordRevealGlobally();
-        // Apply theme as early as possible to avoid flash. Default = dark.
-        // The user's saved preference (if any) is applied later in showApp().
-        applyTheme(localStorage.getItem('evt:lastTheme') || 'dark');
+        bindScrollHide();
+        bindSwipeBack();
+        applyTheme(); // Always dark
         registerServiceWorker();
 
         // Try to bring up the cloud first (non-blocking after timeout).
@@ -261,9 +261,10 @@ const App = (() => {
             $('#screen-login').classList.add('hidden');
             showApp(user);
         }
-        // hide boot
-        setTimeout(() => $('#boot').classList.add('fade-out'), 350);
-        setTimeout(() => { const b = $('#boot'); if (b) b.remove(); }, 800);
+        // Hide boot — wait for the stripes + logo animation (~2s) to finish.
+        // We never block longer than 2.4s total so the user reaches the app fast.
+        setTimeout(() => $('#boot').classList.add('fade-out'), 1900);
+        setTimeout(() => { const b = $('#boot'); if (b) b.remove(); }, 2500);
     }
 
     /**
@@ -637,53 +638,17 @@ const App = (() => {
         });
     }
 
-    // ===== THEME =====
-    let mqDark = null;
-
+    // ===== THEME (dark only) =====
     /**
-     * Apply a theme. 'auto' uses the OS preference and listens for changes.
-     * Updates the meta theme-color so the browser/PWA chrome matches.
+     * The app is dark-mode-only by design. This function is a no-op kept for
+     * backward compatibility with the previous theme-picker call sites.
      */
-    function applyTheme(theme) {
-        const html = document.documentElement;
-        let resolved = theme;
-        if (theme === 'auto') {
-            // Listen for OS changes (only register the listener once)
-            if (!mqDark && window.matchMedia) {
-                mqDark = window.matchMedia('(prefers-color-scheme: dark)');
-                mqDark.addEventListener('change', () => {
-                    if ((Storage.getCurrentUser() && Storage.getUserSettings(Storage.getCurrentUser().id).theme) === 'auto') {
-                        applyTheme('auto');
-                    }
-                });
-            }
-            resolved = (mqDark && mqDark.matches === false) ? 'light' : 'dark';
-        }
-
-        if (resolved === 'light') {
-            html.dataset.theme = 'light';
-        } else {
-            delete html.dataset.theme;
-        }
-
-        // Update PWA theme-color
+    function applyTheme(/* ignored */) {
+        document.documentElement.removeAttribute('data-theme');
         const meta = document.querySelector('meta[name="theme-color"]');
-        if (meta) meta.content = resolved === 'light' ? '#FAF6ED' : '#0E1620';
-
-        // Re-render charts with theme-aware colors if dashboard is visible
-        if (currentView === 'dashboard') {
-            const u = Storage.getCurrentUser();
-            if (u) Dashboard.render(u.id, ($('#dash-period') || {}).value || 'month');
-        }
+        if (meta) meta.content = '#0E1620';
     }
-
-    function refreshThemeOptions() {
-        const user = Storage.getCurrentUser();
-        const current = (user && Storage.getUserSettings(user.id).theme) || 'dark';
-        document.querySelectorAll('.theme-option').forEach(b => {
-            b.classList.toggle('active', b.dataset.theme === current);
-        });
-    }
+    function refreshThemeOptions() { /* no-op (theme picker removed) */ }
 
     // ===== PASSWORD REVEAL =====
     /**
@@ -733,6 +698,129 @@ const App = (() => {
                 .then(reg => console.log('[SW] registered, scope:', reg.scope))
                 .catch(err => console.warn('[SW] registration failed:', err));
         });
+    }
+
+    // ===== SCROLL: auto-hide bottom nav + topbar (Platzi-style) =====
+    let _scrollLastY = 0;
+    let _scrollAcc = 0;
+    const SCROLL_HIDE_THRESHOLD = 24;   // px scrolled before hiding
+    const SCROLL_TOP_BUFFER = 60;       // never hide near the very top
+
+    function bindScrollHide() {
+        let ticking = false;
+        const onScroll = () => {
+            if (ticking) return;
+            ticking = true;
+            requestAnimationFrame(() => {
+                handleScrollHide();
+                ticking = false;
+            });
+        };
+        window.addEventListener('scroll', onScroll, { passive: true });
+    }
+
+    function handleScrollHide() {
+        const nav = document.querySelector('.bottom-nav');
+        const topbar = document.querySelector('.topbar');
+        if (!nav) return;
+
+        const y = window.scrollY;
+        const dy = y - _scrollLastY;
+
+        // Always show near top
+        if (y < SCROLL_TOP_BUFFER) {
+            nav.classList.remove('nav-hidden');
+            if (topbar) topbar.classList.remove('bar-hidden');
+            _scrollAcc = 0;
+            _scrollLastY = y;
+            return;
+        }
+
+        // Accumulate same-direction movement to avoid jitter
+        if ((dy > 0 && _scrollAcc < 0) || (dy < 0 && _scrollAcc > 0)) {
+            _scrollAcc = 0;
+        }
+        _scrollAcc += dy;
+
+        if (_scrollAcc > SCROLL_HIDE_THRESHOLD) {
+            // Scrolling down — hide chrome
+            nav.classList.add('nav-hidden');
+            if (topbar) topbar.classList.add('bar-hidden');
+            _scrollAcc = 0;
+        } else if (_scrollAcc < -SCROLL_HIDE_THRESHOLD) {
+            // Scrolling up — reveal
+            nav.classList.remove('nav-hidden');
+            if (topbar) topbar.classList.remove('bar-hidden');
+            _scrollAcc = 0;
+        }
+        _scrollLastY = y;
+    }
+
+    /** Force-show the nav and topbar (e.g. when navigating to a new view). */
+    function showChrome() {
+        const nav = document.querySelector('.bottom-nav');
+        const topbar = document.querySelector('.topbar');
+        if (nav) nav.classList.remove('nav-hidden');
+        if (topbar) topbar.classList.remove('bar-hidden');
+        _scrollAcc = 0;
+        _scrollLastY = window.scrollY;
+    }
+
+    // ===== SWIPE BACK (iOS-style edge gesture) =====
+    let _swipeStartX = 0;
+    let _swipeStartY = 0;
+    let _swipeStartT = 0;
+    let _swipeActive = false;
+
+    function bindSwipeBack() {
+        document.addEventListener('touchstart', e => {
+            const t = e.touches[0];
+            // Only trigger if the gesture starts within 30px of the LEFT edge
+            if (!t || t.clientX > 30) { _swipeActive = false; return; }
+            _swipeActive = true;
+            _swipeStartX = t.clientX;
+            _swipeStartY = t.clientY;
+            _swipeStartT = Date.now();
+        }, { passive: true });
+
+        document.addEventListener('touchend', e => {
+            if (!_swipeActive) return;
+            _swipeActive = false;
+            const t = e.changedTouches[0];
+            if (!t) return;
+            const dx = t.clientX - _swipeStartX;
+            const dy = Math.abs(t.clientY - _swipeStartY);
+            const dt = Date.now() - _swipeStartT;
+            // Quick rightward swipe with little vertical noise
+            if (dx > 70 && dy < 60 && dt < 600) handleSwipeBack();
+        }, { passive: true });
+    }
+
+    /** When the user swipes from the left edge, simulate a "back" tap. */
+    function handleSwipeBack() {
+        // Modals & overlays first
+        const modal = document.getElementById('modal');
+        if (modal && !modal.classList.contains('hidden')) { closeModal(); return; }
+        const viewer = document.getElementById('image-viewer');
+        if (viewer && !viewer.classList.contains('hidden')) { viewer.classList.add('hidden'); return; }
+        const restOv = document.getElementById('rest-overlay');
+        if (restOv && !restOv.classList.contains('hidden')) { Workout.endRest(); restOv.classList.add('hidden'); return; }
+        const menu = document.getElementById('menu');
+        if (menu && !menu.classList.contains('hidden')) { menu.classList.add('hidden'); return; }
+
+        // Otherwise, find the active view's back button (data-back) and click it
+        const activeView = document.querySelector('.view.active');
+        if (!activeView) return;
+        const backBtn = activeView.querySelector('[data-back]');
+        if (backBtn) {
+            backBtn.click();
+            return;
+        }
+        // Workout view has its own X button
+        if (activeView.id === 'view-workout') {
+            const exitBtn = document.getElementById('workout-exit');
+            if (exitBtn) exitBtn.click();
+        }
     }
 
     function bindCloudIndicator() {
@@ -794,12 +882,8 @@ const App = (() => {
         $('#setting-auto-rest').checked = !!us.autoRestTimer;
         $('#setting-sounds').checked = us.soundsEnabled !== false;
 
-        // Apply this user's theme preference and remember it for next boot.
-        // New users default to dark mode (most ergonomic at the gym).
-        const theme = us.theme || 'dark';
-        applyTheme(theme);
-        try { localStorage.setItem('evt:lastTheme', theme); } catch (e) {}
-        refreshThemeOptions();
+        // Always dark mode by design. (Theme picker removed.)
+        applyTheme();
 
         // Show/hide admin items
         $$('.admin-only').forEach(el => {
@@ -871,18 +955,6 @@ const App = (() => {
             if (ex) startRestTimer(ex.rest, 'Descanso');
         };
 
-        // Theme picker
-        document.querySelectorAll('.theme-option').forEach(btn => {
-            btn.onclick = () => {
-                const theme = btn.dataset.theme;
-                applyTheme(theme);
-                try { localStorage.setItem('evt:lastTheme', theme); } catch (e) {}
-                const u = Storage.getCurrentUser();
-                if (u) Storage.saveUserSettings(u.id, { theme });
-                refreshThemeOptions();
-            };
-        });
-
         // Settings toggles
         $('#setting-auto-rest').onchange = e => {
             const u = Storage.getCurrentUser();
@@ -947,6 +1019,9 @@ const App = (() => {
         const el = document.getElementById('view-' + view);
         if (el) el.classList.add('active');
         $$('.nav-item').forEach(b => b.classList.toggle('active', b.dataset.view === view));
+        // Reset scroll + reveal chrome on view change
+        try { window.scrollTo({ top: 0, behavior: 'instant' }); } catch (e) { window.scrollTo(0, 0); }
+        showChrome();
 
         // Show/hide bottom nav for workout/summary/preview/body
         const nav = document.querySelector('.bottom-nav');
